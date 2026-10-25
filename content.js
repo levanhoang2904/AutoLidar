@@ -674,6 +674,179 @@
     return true;
   }
 
+  function snapObjectSignboard(obj) {
+    if (!obj || !obj.position || !obj.scale || !obj.rotation) return false;
+
+    const panel = document.getElementById(POSITION_PANEL_ID);
+    const badge = panel?.querySelector('[data-role="signboard-fit-badge"]');
+    const fitSizeCheckbox = panel?.querySelector('[data-role="signboard-fit-size"]');
+    const isFitSize = fitSizeCheckbox ? fitSizeCheckbox.checked : true;
+
+    try {
+      const pc = getPagePc();
+      const groupPoints = pc?.groupPoints?.children?.[0];
+      const posAttr = groupPoints?.geometry?.getAttribute("position");
+      if (!posAttr || !posAttr.array || posAttr.count === 0) {
+        if (badge) {
+          badge.textContent = "Không có điểm";
+          badge.style.background = "#7f1d1d";
+          badge.style.color = "#fca5a5";
+        }
+        return false;
+      }
+
+      const arr = posAttr.array;
+      const count = posAttr.count;
+
+      const boxX = obj.position.x;
+      const boxY = obj.position.y;
+      const boxZ = obj.position.z;
+      const boxYaw = obj.rotation.z || 0;
+
+      const halfL = (obj.scale.x || 0.4) / 2;
+      const halfW = (obj.scale.y || 0.8) / 2;
+      const halfH = (obj.scale.z || 0.8) / 2;
+
+      const cosB = Math.cos(boxYaw);
+      const sinB = Math.sin(boxYaw);
+
+      // 1. Quét các điểm LiDAR trong phạm vi box biển báo (kèm lề 0.35m xung quanh)
+      const cand = [];
+      const step = count > 120000 ? 2 : 1;
+      const maxR = Math.max(halfL, halfW, halfH) + 0.35;
+
+      for (let i = 0; i < count; i += step) {
+        const idx = i * 3;
+        const px = arr[idx];
+        const py = arr[idx + 1];
+        const pz = arr[idx + 2];
+
+        const dx = px - boxX;
+        const dy = py - boxY;
+        const dz = pz - boxZ;
+
+        if (Math.abs(dx) > maxR || Math.abs(dy) > maxR || Math.abs(dz) > maxR) continue;
+
+        // Chuyển về tọa độ cục bộ của box
+        const lx = dx * cosB + dy * sinB;
+        const ly = -dx * sinB + dy * cosB;
+        const lz = dz;
+
+        if (
+          Math.abs(lx) <= halfL + 0.25 &&
+          Math.abs(ly) <= halfW + 0.25 &&
+          Math.abs(lz) <= halfH + 0.25
+        ) {
+          cand.push({ lx, ly, lz });
+        }
+      }
+
+      if (cand.length < 2) {
+        if (badge) {
+          badge.textContent = `Quá ít điểm (${cand.length} pts)`;
+          badge.style.background = "#713f12";
+          badge.style.color = "#fde047";
+        }
+        return false;
+      }
+
+      // 2. Tìm trọng tâm 3D (center) của cụm điểm biển báo trên cao
+      const sortedX = cand.map((p) => p.lx).sort((a, b) => a - b);
+      const sortedY = cand.map((p) => p.ly).sort((a, b) => a - b);
+      const sortedZ = cand.map((p) => p.lz).sort((a, b) => a - b);
+      const N = cand.length;
+
+      let cLx = 0, cLy = 0, cLz = 0;
+      let spanY = 0, spanZ = 0;
+
+      if (N >= 6) {
+        // Nhiều điểm: dùng phân vị 5% và 95% để khử nhiễu tuyệt đối
+        const x0 = sortedX[Math.floor(N * 0.05)], x1 = sortedX[Math.floor(N * 0.95)];
+        const y0 = sortedY[Math.floor(N * 0.05)], y1 = sortedY[Math.floor(N * 0.95)];
+        const z0 = sortedZ[Math.floor(N * 0.05)], z1 = sortedZ[Math.floor(N * 0.95)];
+        cLx = (x0 + x1) / 2;
+        cLy = (y0 + y1) / 2;
+        cLz = (z0 + z1) / 2;
+        spanY = y1 - y0;
+        spanZ = z1 - z0;
+      } else {
+        // Ít điểm (Sparse): dùng min/max
+        const x0 = sortedX[0], x1 = sortedX[N - 1];
+        const y0 = sortedY[0], y1 = sortedY[N - 1];
+        const z0 = sortedZ[0], z1 = sortedZ[N - 1];
+        cLx = (x0 + x1) / 2;
+        cLy = (y0 + y1) / 2;
+        cLz = (z0 + z1) / 2;
+        spanY = y1 - y0;
+        spanZ = z1 - z0;
+      }
+
+      // Giới hạn dịch chuyển tối đa để an toàn (không bị văng xa)
+      cLx = Math.max(-0.45, Math.min(0.45, cLx));
+      cLy = Math.max(-0.45, Math.min(0.45, cLy));
+      cLz = Math.max(-0.45, Math.min(0.45, cLz));
+
+      // 3. Đưa dịch chuyển về tọa độ thế giới (bảo toàn cao độ Z trên không)
+      const shiftWx = cLx * cosB - cLy * sinB;
+      const shiftWy = cLx * sinB + cLy * cosB;
+      const shiftWz = cLz;
+
+      const newPos = {
+        x: boxX + shiftWx,
+        y: boxY + shiftWy,
+        z: boxZ + shiftWz,
+      };
+
+      // 4. Nếu bật tự ôm khít kích thước W, H (kèm lề an toàn 5cm)
+      const payload = { position: newPos };
+      if (isFitSize && spanY >= 0.15 && spanZ >= 0.15) {
+        const newScale = obj.scale.clone();
+        newScale.y = Math.max(0.2, Math.min(3.0, +(spanY + 0.06).toFixed(2)));
+        newScale.z = Math.max(0.2, Math.min(3.0, +(spanZ + 0.06).toFixed(2)));
+        payload.scale = newScale;
+      }
+
+      applyObjectTransform(obj, payload);
+
+      const pcInstance = getPagePc();
+      if (pcInstance && typeof pcInstance.selectObject === "function") {
+        pcInstance.selectObject(obj);
+      }
+
+      // Làm mới khung nhìn Side Views
+      if (pcInstance && Array.isArray(pcInstance.renderViews)) {
+        pcInstance.renderViews.forEach((view) => {
+          if (view && typeof view.fitObject === "function") {
+            view.needFit = true;
+            view.enableFit = true;
+            view.fitObject(obj);
+            view.render?.();
+          }
+        });
+      }
+
+      if (badge) {
+        badge.textContent = `🟢 Đã ôm biển (${N} pts)`;
+        badge.style.background = "#065f46";
+        badge.style.color = "#a7f3d0";
+        badge.title = `Đã căn tâm 3D (X, Y, Z) và ôm khít bảng biển (${N} điểm). Giữ nguyên cao độ trên cao.`;
+      }
+
+      updatePositionPanel();
+      requestAnimationFrame(() => updatePositionPanel());
+      return true;
+    } catch (err) {
+      console.warn("snapObjectSignboard error:", err);
+      if (badge) {
+        badge.textContent = "Lỗi xử lý";
+        badge.style.background = "#7f1d1d";
+        badge.style.color = "#fca5a5";
+      }
+      return false;
+    }
+  }
+
+
 function ensurePositionPanel() {
     let panel = document.getElementById(POSITION_PANEL_ID);
     if (panel) return panel;
@@ -839,6 +1012,21 @@ function ensurePositionPanel() {
         </div>
       </div>
         
+      <div data-role="signboard-alignment-card" style="margin-bottom:10px;padding:9px 10px;border:1px solid #d97706;border-radius:8px;background:rgba(217, 119, 6, 0.12);box-shadow:inset 0 0 10px rgba(217, 119, 6, 0.08);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+          <span style="font-weight:700;font-size:11px;color:#fbbf24;">🪧 CĂN BIỂN BÁO TRÊN CAO</span>
+          <span data-role="signboard-fit-badge" style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:#334155;color:#94a3b8;">Sẵn sàng</span>
+        </div>
+        <button data-role="snap-signboard-btn" title="Căn tâm 3D (X, Y, Z) và ôm khít bảng biển trên cao (Phím tắt: Alt+S)" style="width:100%;height:32px;display:flex;align-items:center;justify-content:center;gap:5px;border:none;border-radius:6px;background:#d97706;color:white;cursor:pointer;font-size:11px;font-weight:800;letter-spacing:0.2px;">
+          <span>🪧 Snap Biển Báo Trên Cao</span>
+          <span style="font-size:10px;opacity:0.85;font-weight:600;">(Alt+S)</span>
+        </button>
+        <label style="display:flex;align-items:center;gap:7px;margin-top:7px;font-size:10px;color:#fde68a;cursor:pointer;">
+          <input data-role="signboard-fit-size" type="checkbox" checked style="width:15px;height:15px;flex:0 0 15px;" />
+          <span>Tự ôm khít kích thước mặt bảng (W, H)</span>
+        </label>
+      </div>
+
       <div data-role="ground-alignment-card" style="margin-bottom:11px;padding:9px 10px;border:1px solid #0284c7;border-radius:8px;background:rgba(14, 116, 144, 0.15);box-shadow:inset 0 0 10px rgba(2, 132, 199, 0.1);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
           <span style="font-weight:700;font-size:11px;color:#38bdf8;">🚗 CĂN CHỈNH MẶT ĐƯỜNG</span>
@@ -1435,6 +1623,10 @@ function ensurePositionPanel() {
           autoFitPane.style.display = tab === "auto-fit" ? "block" : "none";
         localStorage.setItem("auto-lwh-panel-tab", tab || "transform");
       }
+      if (role === "snap-signboard-btn" || target.closest('[data-role="snap-signboard-btn"]')) {
+        const obj = getSelectedObject();
+        if (obj) snapObjectSignboard(obj);
+      }
       if (role === "snap-overhead-btn" || target.closest('[data-role="snap-overhead-btn"]')) {
         const obj = getSelectedObject();
         if (obj) snapObjectOverhead(obj);
@@ -1867,6 +2059,12 @@ function ensurePositionPanel() {
         const tag = document.activeElement?.tagName?.toLowerCase();
         if (tag === "input" || tag === "textarea") return;
 
+        if (e.altKey && (e.key === "s" || e.key === "S")) {
+          e.preventDefault();
+          e.stopPropagation();
+          const obj = getSelectedObject();
+          if (obj) snapObjectSignboard(obj);
+        }
         if (e.altKey && (e.key === "o" || e.key === "O")) {
           e.preventDefault();
           e.stopPropagation();
