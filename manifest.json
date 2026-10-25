@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Auto LWH",
+  "version": "1.0.0",
+  "description": "Auto set size for mock page",
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:8190/*",
+        "http://127.0.0.1:8190/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ]
+}
