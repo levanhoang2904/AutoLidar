@@ -60,33 +60,51 @@
       window.editor || window.__APP__?.editor || window.app?.editor;
     const pc = getPagePc();
 
-    // Chuẩn hóa payload.rotation: Trong Three.js, Euler.copy() bắt buộc đọc _x, _y, _z, _order.
-    // Nếu truyền object thuần { x, y, z } vào copy() thì Three.js gán _x=undefined -> NaN -> box bị ẩn biến mất hoàn toàn!
+    // CHỐNG LỖI NaN TOÀN DIỆN CHO ROTATION (YAW), POSITION, VÀ SCALE:
+    // Trong Three.js, Euler.copy() bắt buộc đọc _x, _y, _z, _order.
+    // Nếu _x, _y, hoặc _z bị undefined hoặc NaN thì ma trận chuyển vị sẽ hỏng -> box bị biến mất hoàn toàn!
     if (payload.rotation) {
+      const curRx = Number.isFinite(Number(obj.rotation?.x)) ? Number(obj.rotation.x) : 0;
+      const curRy = Number.isFinite(Number(obj.rotation?.y)) ? Number(obj.rotation.y) : 0;
+      const curRz = Number.isFinite(Number(obj.rotation?.z)) ? Number(obj.rotation.z) : 0;
+
       if (payload.rotation._x === undefined || typeof payload.rotation.set !== "function") {
         if (obj.rotation && typeof obj.rotation.clone === "function") {
           const euler = obj.rotation.clone();
+          const rx = Number.isFinite(Number(payload.rotation.x)) ? Number(payload.rotation.x) : curRx;
+          const ry = Number.isFinite(Number(payload.rotation.y)) ? Number(payload.rotation.y) : curRy;
+          const rz = Number.isFinite(Number(payload.rotation.z)) ? Number(payload.rotation.z) : curRz;
           euler.set(
-            Number(payload.rotation.x) || 0,
-            Number(payload.rotation.y) || 0,
-            Number(payload.rotation.z) || 0,
+            rx,
+            ry,
+            rz,
             payload.rotation.order || obj.rotation.order || "XYZ"
           );
           payload.rotation = euler;
         }
+      } else {
+        if (!Number.isFinite(payload.rotation.x)) payload.rotation.x = curRx;
+        if (!Number.isFinite(payload.rotation.y)) payload.rotation.y = curRy;
+        if (!Number.isFinite(payload.rotation.z)) payload.rotation.z = curRz;
       }
     }
 
     if (payload.position) {
-      payload.position.x = Number(payload.position.x) || 0;
-      payload.position.y = Number(payload.position.y) || 0;
-      payload.position.z = Number(payload.position.z) || 0;
+      const curPx = Number.isFinite(Number(obj.position?.x)) ? Number(obj.position.x) : 0;
+      const curPy = Number.isFinite(Number(obj.position?.y)) ? Number(obj.position.y) : 0;
+      const curPz = Number.isFinite(Number(obj.position?.z)) ? Number(obj.position.z) : 0;
+      payload.position.x = Number.isFinite(Number(payload.position.x)) ? Number(payload.position.x) : curPx;
+      payload.position.y = Number.isFinite(Number(payload.position.y)) ? Number(payload.position.y) : curPy;
+      payload.position.z = Number.isFinite(Number(payload.position.z)) ? Number(payload.position.z) : curPz;
     }
 
     if (payload.scale) {
-      payload.scale.x = Number(payload.scale.x) || 1;
-      payload.scale.y = Number(payload.scale.y) || 1;
-      payload.scale.z = Number(payload.scale.z) || 1;
+      const curSx = Number.isFinite(Number(obj.scale?.x)) ? Number(obj.scale.x) : 1;
+      const curSy = Number.isFinite(Number(obj.scale?.y)) ? Number(obj.scale.y) : 1;
+      const curSz = Number.isFinite(Number(obj.scale?.z)) ? Number(obj.scale.z) : 1;
+      payload.scale.x = Number.isFinite(Number(payload.scale.x)) ? Number(payload.scale.x) : curSx;
+      payload.scale.y = Number.isFinite(Number(payload.scale.y)) ? Number(payload.scale.y) : curSy;
+      payload.scale.z = Number.isFinite(Number(payload.scale.z)) ? Number(payload.scale.z) : curSz;
     }
 
     if (
@@ -1122,6 +1140,75 @@ function getSavedGroundOffset() {
     localStorage.setItem("auto-lwh-ref-mode", mode || "top");
   }
 
+  // HÀM HÚT ĐIỂM LIDAR TRÊN CUNG TRÒN BÁN KÍNH R QUANH MỐC A (XỬ LÝ ĐƯỜNG CONG / XE ÔM CUA)
+  function findArcSnapPoint(centerA, targetRadius, nominalAngle, targetZ, targetObj) {
+    if (!centerA || !Number.isFinite(targetRadius) || targetRadius <= 0.05) return null;
+    const pc = getPagePc();
+    const groupPoints = pc?.groupPoints?.children?.[0];
+    const posAttr = groupPoints?.geometry?.getAttribute("position");
+    if (!posAttr || !posAttr.array || posAttr.count === 0) return null;
+
+    const arr = posAttr.array;
+    const count = posAttr.count;
+
+    // Chiều cao hộp mục tiêu để lọc đúng lát cắt Z (không bị nhiễu mặt đường hay trên trời)
+    const halfH = Math.max(0.2, (targetObj?.scale?.z || 0.6) / 2);
+    const minZ = targetZ - halfH - 0.15;
+    const maxZ = targetZ + halfH + 0.15;
+
+    // Vành đai bán kính [R - 0.45m, R + 0.45m] quanh Mốc A
+    const minR = Math.max(0.05, targetRadius - 0.45);
+    const maxR = targetRadius + 0.45;
+    const maxAngleDiff = 25 * (Math.PI / 180); // Cửa sổ góc ±25° quanh góc danh định
+
+    const sectorPoints = [];
+    const step = count > 120000 ? 2 : 1;
+
+    for (let i = 0; i < count; i += step) {
+      const idx = i * 3;
+      const px = arr[idx];
+      const py = arr[idx + 1];
+      const pz = arr[idx + 2];
+
+      // Lọc cao độ Z
+      if (pz < minZ || pz > maxZ) continue;
+
+      const dX = px - centerA.x;
+      const dY = py - centerA.y;
+      const distFromA = Math.hypot(dX, dY);
+
+      if (distFromA < minR || distFromA > maxR) continue;
+
+      const angle = Math.atan2(dY, dX);
+      let angleDiff = angle - nominalAngle;
+      while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+      while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+      if (Math.abs(angleDiff) <= maxAngleDiff) {
+        sectorPoints.push({ px, py, pz, distFromA, angle });
+      }
+    }
+
+    if (sectorPoints.length < 2) {
+      return null;
+    }
+
+    // Sắp xếp theo góc để lấy trung vị (median angle), loại bỏ nhiễu bay lạc
+    sectorPoints.sort((a, b) => a.angle - b.angle);
+    const medianAngle = sectorPoints[Math.floor(sectorPoints.length * 0.5)].angle;
+
+    // Tọa độ trên cung tròn với bán kính R chuẩn xác 100%
+    const snapX = Number((centerA.x + targetRadius * Math.cos(medianAngle)).toFixed(3));
+    const snapY = Number((centerA.y + targetRadius * Math.sin(medianAngle)).toFixed(3));
+
+    return {
+      x: snapX,
+      y: snapY,
+      snappedAngle: medianAngle,
+      pointsCount: sectorPoints.length,
+    };
+  }
+
   function applyRefZ(targetObj) {
     const obj = targetObj || getSelectedObject();
     const panel = document.getElementById(POSITION_PANEL_ID);
@@ -1202,21 +1289,37 @@ function getSavedGroundOffset() {
     const gapSign = gapVal >= 0 ? `+${gapVal.toFixed(2)}` : `${gapVal.toFixed(2)}`;
 
     if (mode === "offset") {
-      // 🎯 Giữ cự ly / vector khoảng cách chuẩn
+      // 🎯 Giữ cự ly / vector khoảng cách chuẩn (Đường cong & Hút LiDAR trên cung tròn)
       const rel = getSavedConeRelation();
       if (rel && (Number.isFinite(rel.deltaX) || Number.isFinite(rel.deltaY))) {
-        if (Number.isFinite(rel.localDx) && Number.isFinite(rel.localDy) && Number.isFinite(rel.refYaw)) {
-          const dYaw = refYaw - (rel.refYaw || 0);
-          const cosD = Math.cos(dYaw);
-          const sinD = Math.sin(dYaw);
-          newX = refX + (rel.deltaX * cosD - rel.deltaY * sinD);
-          newY = refY + (rel.deltaX * sinD + rel.deltaY * cosD);
+        const nominalAngle0 = Number.isFinite(rel.nominalAngle)
+          ? rel.nominalAngle
+          : Math.atan2(rel.deltaY || 0, rel.deltaX || 0);
+        const dYaw = refYaw - (rel.refYaw || 0);
+        const thetaNom = nominalAngle0 + dYaw;
+        const R = rel.dist2D || Math.hypot(rel.deltaX || 0, rel.deltaY || 0);
+
+        let arcSnap = null;
+        try {
+          arcSnap = findArcSnapPoint(
+            { x: refX, y: refY },
+            R,
+            thetaNom,
+            refZ + (rel.deltaZ || 0),
+            obj
+          );
+        } catch (_) {}
+
+        if (arcSnap) {
+          newX = arcSnap.x;
+          newY = arcSnap.y;
+          badgeText = `🟢 Hút Arc R (#${refId}: ${arcSnap.pointsCount}pts)`;
         } else {
-          newX = refX + (rel.deltaX || 0);
-          newY = refY + (rel.deltaY || 0);
+          newX = refX + R * Math.cos(thetaNom);
+          newY = refY + R * Math.sin(thetaNom);
+          badgeText = `🟢 Khóa cự ly R (#${refId})`;
         }
         newZ = refZ + (rel.deltaZ || 0);
-        badgeText = `🟢 Giữ ΔX, ΔY (#${refId})`;
       } else {
         const dx = (obj.position?.x ?? refX) - refX;
         const dy = (obj.position?.y ?? refY) - refY;
@@ -1455,6 +1558,8 @@ function getSavedGroundOffset() {
       dist3D: Number(dist3D.toFixed(3)),
       unitX: dist2D > 1e-4 ? dx / dist2D : 1,
       unitY: dist2D > 1e-4 ? dy / dist2D : 0,
+      nominalAngle: Number(Math.atan2(dy, dx).toFixed(4)),
+      yawMode: "keep_target_yaw",
     };
 
     localStorage.setItem("auto-lwh-cone-relation", JSON.stringify(lastConeRelation));
@@ -1483,11 +1588,11 @@ function getSavedGroundOffset() {
 
     if (!curObj) {
       if (badge) {
-        badge.textContent = "Chưa chọn Cone B";
+        badge.textContent = "Chưa chọn Vật B";
         badge.style.background = "#7f1d1d";
         badge.style.color = "#fca5a5";
       }
-      alert("Vui lòng click chọn Cone B trước khi chốt làm chuẩn!");
+      alert("Vui lòng click chọn Vật B (Biển/Cột/Cỏ/Cone) trước khi chốt làm chuẩn!");
       return false;
     }
 
@@ -1503,7 +1608,7 @@ function getSavedGroundOffset() {
         refId = refObj.userData?.trackName || refObj.userData?.trackId || "1";
         if (refInput) refInput.value = refId;
       } else {
-        alert("Vui lòng chọn Cone A rồi bấm nút 📌 để ghim ID tham chiếu!");
+        alert("Vui lòng chọn Vật A rồi bấm nút 📌 để ghim ID tham chiếu!");
         return false;
       }
     }
@@ -1546,7 +1651,7 @@ function getSavedGroundOffset() {
       refYaw: refYaw,
       targetTrackName: String(targetTrackName),
       targetTrackId: String(curObj.userData?.trackId || ""),
-      classType: curObj.userData?.classType || "traffic_cone",
+      classType: curObj.userData?.classType || "",
       classId: curObj.userData?.classId || "",
       scale: {
         x: curObj.scale?.x || 0.41,
@@ -1570,6 +1675,8 @@ function getSavedGroundOffset() {
       dist3D: Number(dist3D.toFixed(3)),
       unitX: dist2D > 1e-4 ? dx / dist2D : 1,
       unitY: dist2D > 1e-4 ? dy / dist2D : 0,
+      nominalAngle: Number(Math.atan2(dy, dx).toFixed(4)),
+      yawMode: "keep_target_yaw",
       timestamp: Date.now(),
     };
 
@@ -1589,7 +1696,7 @@ function getSavedGroundOffset() {
       const dXStr = `${dx >= 0 ? '+' : ''}${dx.toFixed(2)}m`;
       const dYStr = `${dy >= 0 ? '+' : ''}${dy.toFixed(2)}m`;
       const dZStr = `${dz >= 0 ? '+' : ''}${dz.toFixed(2)}m`;
-      benchmarkBanner.innerHTML = `⭐ <b>Đã chốt chuẩn F${curFrameNum}:</b> #${refTrackName} ➜ #${targetTrackName} | Cự ly: <b>${dist2D.toFixed(2)}m</b> (Hở: ${edgeGap.toFixed(2)}m)<br/><span style="color:#cbd5e1;font-size:8.5px;">ΔX: ${dXStr} | ΔY: ${dYStr} | ΔZ: ${dZStr}</span><br/><span style="color:#6ee7b7;font-size:8.5px;font-weight:600;">✓ Sang frame mới: Bấm <b>Alt+B</b> để dời Cone B (hoặc tự tích 'Tự dời B khi qua Frame')</span>`;
+      benchmarkBanner.innerHTML = `⭐ <b>Đã chốt chuẩn F${curFrameNum}:</b> #${refTrackName} ➜ #${targetTrackName} | Cự ly: <b>${dist2D.toFixed(2)}m</b> (Hở: ${edgeGap.toFixed(2)}m)<br/><span style="color:#cbd5e1;font-size:8.5px;">ΔX: ${dXStr} | ΔY: ${dYStr} | ΔZ: ${dZStr}</span><br/><span style="color:#6ee7b7;font-size:8.5px;font-weight:600;">✓ Sang frame mới: Bấm <b>Alt+B</b> để dời Vật B (hoặc tự tích 'Tự dời B khi qua Frame')</span><br/><span style="color:#93c5fd;font-size:8.5px;font-weight:600;">🎯 Yaw: Giữ nguyên 100% góc của B (P/án 3: Tự do nắn Yaw cho B)</span>`;
     }
 
     const fromInput = panel?.querySelector('[data-role="batch-from-frame"]');
@@ -1635,7 +1742,7 @@ function getSavedGroundOffset() {
       frameObjs = getAll3DObjects();
     }
 
-    // Tìm Cone A ở frame mục tiêu
+    // Tìm Vật A ở frame mục tiêu
     const qRef = String(relation.refTrackName || "").trim().toLowerCase().replace(/^#/, "");
     const qRefId = String(relation.refTrackId || "").trim().toLowerCase();
     const coneA = frameObjs.find((o) => {
@@ -1647,14 +1754,14 @@ function getSavedGroundOffset() {
 
     if (!coneA || !coneA.position) {
       if (badge && (!frameParam || curFrame === editor?.getCurrentFrame?.())) {
-        badge.textContent = `Ko thấy Cone A (#${relation.refTrackName})`;
+        badge.textContent = `Ko thấy Mốc A (#${relation.refTrackName})`;
         badge.style.background = "#7f1d1d";
         badge.style.color = "#fca5a5";
       }
       return false;
     }
 
-    // Tọa độ Cone A hiện tại ở frame này
+    // Tọa độ Mốc A hiện tại ở frame này
     const refX = Number(coneA.position.x) || 0;
     const refY = Number(coneA.position.y) || 0;
     const refZ = Number(coneA.position.z) || 0;
@@ -1668,6 +1775,30 @@ function getSavedGroundOffset() {
     const cosB = Math.cos(refYaw);
     const sinB = Math.sin(refYaw);
 
+    // 1. Kiểm tra xem Vật B đã có ở frame này chưa
+    const qTarget = String(relation.targetTrackName || "").trim().toLowerCase().replace(/^#/, "");
+    const qTargetId = String(relation.targetTrackId || "").trim().toLowerCase();
+
+    // Tìm xem user có đang chọn Vật B ở frame hiện tại không
+    let targetConeB = null;
+    if (!frameParam || curFrame === editor?.getCurrentFrame?.()) {
+      const selectedObj = getSelectedObject();
+      if (selectedObj && selectedObj !== coneA && selectedObj.uuid !== coneA.uuid && selectedObj.position) {
+        targetConeB = selectedObj;
+      }
+    }
+
+    // Tìm theo TrackName / TrackId / ID trong danh sách vật thể của frame
+    if (!targetConeB) {
+      targetConeB = frameObjs.find((o) => {
+        if (o === coneA || (o.uuid && coneA.uuid && o.uuid === coneA.uuid)) return false;
+        const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
+        const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
+        const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "").trim().toLowerCase();
+        return (qTarget && (tn === qTarget || tid === qTarget || id === qTarget)) || (qTargetId && (tid === qTargetId || id === qTargetId));
+      });
+    }
+
     let newX = refX;
     let newY = refY;
     let newZ = refZ + (relation.deltaZ || 0);
@@ -1679,16 +1810,36 @@ function getSavedGroundOffset() {
       ? (radiusRef + radiusTarget + relation.gap)
       : (relation.dist2D || (radiusRef + radiusTarget));
 
+    let arcSnapResult = null;
     if (mode === "offset") {
-      if (Number.isFinite(relation.localDx) && Number.isFinite(relation.localDy) && Number.isFinite(relation.refYaw)) {
-        const dYaw = refYaw - (relation.refYaw || 0);
-        const cosD = Math.cos(dYaw);
-        const sinD = Math.sin(dYaw);
-        newX = refX + (relation.deltaX * cosD - relation.deltaY * sinD);
-        newY = refY + (relation.deltaX * sinD + relation.deltaY * cosD);
+      const nominalAngle0 = Number.isFinite(relation.nominalAngle)
+        ? relation.nominalAngle
+        : Math.atan2(relation.deltaY || 0, relation.deltaX || 0);
+      const dYaw = refYaw - (relation.refYaw || 0);
+      const thetaNom = nominalAngle0 + dYaw;
+      const R = relation.dist2D || Math.hypot(relation.deltaX || 0, relation.deltaY || 0);
+
+      // TỰ HÚT THEO CHÙM ĐIỂM LIDAR TRÊN CUNG TRÒN BÁN KÍNH R (ĐƯỜNG CONG / XE ÔM CUA):
+      if (!frameParam || curFrame === editor?.getCurrentFrame?.()) {
+        try {
+          arcSnapResult = findArcSnapPoint(
+            { x: refX, y: refY },
+            R,
+            thetaNom,
+            refZ + (relation.deltaZ || 0),
+            targetConeB
+          );
+        } catch (e) {
+          console.warn("findArcSnapPoint error:", e);
+        }
+      }
+
+      if (arcSnapResult) {
+        newX = arcSnapResult.x;
+        newY = arcSnapResult.y;
       } else {
-        newX = refX + (relation.deltaX || 0);
-        newY = refY + (relation.deltaY || 0);
+        newX = refX + R * Math.cos(thetaNom);
+        newY = refY + R * Math.sin(thetaNom);
       }
       newZ = refZ + (relation.deltaZ || 0);
     } else if (mode === "line") {
@@ -1733,44 +1884,19 @@ function getSavedGroundOffset() {
     newY = Number(newY.toFixed(3));
     newZ = Number(newZ.toFixed(3));
 
-    // Kiểm tra xem Cone B đã có ở frame này chưa
-    const qTarget = String(relation.targetTrackName || "").trim().toLowerCase().replace(/^#/, "");
-    const qTargetId = String(relation.targetTrackId || "").trim().toLowerCase();
-
-    // 1. Nếu đang ở frame hiện tại và user đang chọn 1 box (khác Cone A) -> đó chính là Cone B cần chỉnh vị trí
-    let targetConeB = null;
-    if (!frameParam || curFrame === editor?.getCurrentFrame?.()) {
-      const selectedObj = getSelectedObject();
-      if (selectedObj && selectedObj !== coneA && selectedObj.uuid !== coneA.uuid && selectedObj.position) {
-        targetConeB = selectedObj;
-      }
-    }
-
-    // 2. Tìm theo TrackName / TrackId / ID trong danh sách vật thể của frame
-    if (!targetConeB) {
-      targetConeB = frameObjs.find((o) => {
-        if (o === coneA || (o.uuid && coneA.uuid && o.uuid === coneA.uuid)) return false;
-        const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
-        const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
-        const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "").trim().toLowerCase();
-        return (qTarget && (tn === qTarget || tid === qTarget || id === qTarget)) || (qTargetId && (tid === qTargetId || id === qTargetId));
-      });
-    }
-
     if (targetConeB) {
-      // CHỈ CHỈNH SỬA POSITION (X, Y, Z), TUYỆT ĐỐI KHÔNG TẠO MỚI HAY THAY ĐỔI GÓC XOAY/KÍCH THƯỚC
+      // PHƯƠNG ÁN 3: CHỈ CHỈNH SỬA POSITION (X, Y, Z), GIỮ NGUYÊN 100% GÓC XOAY (YAW) CỦA VẬT B
+      // KHÔNG CẦN SNAP MẶT ĐẤT: Giữ nguyên chênh lệch cao độ deltaZ chuẩn từ Mốc A (không bị rơi biển/lệch Z)
       applyObjectTransform(targetConeB, { position: { x: newX, y: newY, z: newZ } });
-      if (!frameParam || curFrame === editor?.getCurrentFrame?.()) {
-        const autoSnapGround = panel?.querySelector('[data-role="auto-snap-ground"]')?.checked;
-        if (autoSnapGround) snapObjectToGround(targetConeB);
-        // KHÔNG gọi pc.selectObject(targetConeB) để tránh cướp vùng chọn của người dùng,
-        // giúp giữ nguyên ID ghim (Cone A) đang chọn trên timeline khi chuyển frame.
-      }
       curFrame.needSave = true;
       persistEditorState();
       if (badge && (!frameParam || curFrame === editor?.getCurrentFrame?.())) {
         const bName = targetConeB.userData?.trackName || relation.targetTrackName || "";
-        badge.textContent = `🟢 Dời Cone B (#${bName})`;
+        if (arcSnapResult) {
+          badge.textContent = `🟢 Hút Arc R (#${bName}: ${arcSnapResult.pointsCount}pts)`;
+        } else {
+          badge.textContent = `🟢 Dời #${bName} (Khóa R)`;
+        }
         badge.style.background = "#14532d";
         badge.style.color = "#86efac";
       }
@@ -1779,7 +1905,7 @@ function getSavedGroundOffset() {
 
     // KHÔNG TỰ TẠO MỚI: User sẽ tự tạo đối tượng, tool CHỈ CHỈNH SỬA POSITION
     if (badge && (!frameParam || curFrame === editor?.getCurrentFrame?.())) {
-      badge.textContent = `Chưa có Cone B (#${relation.targetTrackName})`;
+      badge.textContent = `Chưa có Vật B (#${relation.targetTrackName})`;
       badge.style.background = "#713f12";
       badge.style.color = "#fde047";
     }
@@ -1884,7 +2010,7 @@ function getSavedGroundOffset() {
       const benchmarkBanner = panel?.querySelector('[data-role="ref-benchmark-status"]');
       if (benchmarkBanner) {
         benchmarkBanner.style.display = "block";
-        benchmarkBanner.innerHTML = `⭐ <b>Chuẩn F${benchF}:</b> #${relation.refTrackName} ➜ #${relation.targetTrackName}<br/><span style="color:#86efac;font-size:9px;font-weight:700;">✓ Đã đồng bộ dời vị trí ${count} frame (F${fromNum} ➜ F${toNum})!<br/>(Vui lòng bấm nút Save trên giao diện để lưu)</span>`;
+        benchmarkBanner.innerHTML = `⭐ <b>Chuẩn F${benchF}:</b> #${relation.refTrackName} ➜ #${relation.targetTrackName}<br/><span style="color:#86efac;font-size:9px;font-weight:700;">✓ Đã đồng bộ dời vị trí ${count} frame (F${fromNum} ➜ F${toNum})!<br/>(🎯 Giữ nguyên Yaw của B - Vui lòng bấm Save để lưu)</span>`;
       }
     } catch (err) {
       console.error("Lỗi khi chạy Chuỗi F:", err);
@@ -1903,20 +2029,1260 @@ function getSavedGroundOffset() {
     }
   }
 
+  // ==========================================
+  // CÁCH 3: BỘ LỌC LÀM MƯỢT QUỸ ĐẠO TRACKING (MOVING AVERAGE TRAJECTORY SMOOTHER)
+  // ==========================================
+  let isSmoothingTrack = false;
+
+  async function smoothTrackTrajectory() {
+    if (isSmoothingTrack) return;
+    const editor = window.editor || window.__APP__?.editor || window.app?.editor;
+    const panel = document.getElementById(POSITION_PANEL_ID);
+    const badge = panel?.querySelector('[data-role="ref-z-badge"]');
+    const curObj = getSelectedObject();
+
+    if (!curObj) {
+      if (badge) {
+        badge.textContent = "Chưa chọn box";
+        badge.style.background = "#7f1d1d";
+        badge.style.color = "#fca5a5";
+      }
+      alert("Vui lòng click chọn 1 đối tượng/xe cần làm mượt quỹ đạo!");
+      return;
+    }
+
+    const trackName = curObj.userData?.trackName || curObj.userData?.trackId || "1";
+    const trackId = curObj.userData?.trackId || "";
+    const totalF = Array.isArray(editor?.state?.frames) ? editor.state.frames.length : 1;
+
+    const fromInput = panel?.querySelector('[data-role="batch-from-frame"]');
+    const toInput = panel?.querySelector('[data-role="batch-to-frame"]');
+    let fromNum = parseInt(fromInput?.value, 10);
+    let toNum = parseInt(toInput?.value, 10);
+
+    if (!Number.isFinite(fromNum) || fromNum < 1) fromNum = 1;
+    if (!Number.isFinite(toNum) || toNum > totalF) toNum = totalF;
+    if (fromNum >= toNum) {
+      alert(`Khoảng frame không hợp lệ: Từ ${fromNum} đến ${toNum}`);
+      return;
+    }
+
+    const smoothBtn = panel?.querySelector('[data-role="smooth-track-btn"]');
+    if (smoothBtn) {
+      smoothBtn.disabled = true;
+      smoothBtn.style.opacity = "0.6";
+      smoothBtn.textContent = "⏳ Đang làm mượt...";
+    }
+    isSmoothingTrack = true;
+
+    try {
+      const qName = String(trackName).toLowerCase().replace(/^#/, "");
+      const qId = String(trackId).toLowerCase();
+
+      // 1. Kiểm tra xem các frame trong khoảng đã có trong memory chưa
+      let needAsyncLoad = false;
+      for (let f = fromNum - 1; f < toNum; f++) {
+        const frame = editor.state.frames[f];
+        if (!frame || !editor.dataManager?.getFrameObject(frame.id)) {
+          needAsyncLoad = true;
+          break;
+        }
+      }
+
+      const originalFrameIndex = editor.state.frameIndex;
+
+      // Nếu cần nạp từ backend, duyệt qua các frame
+      if (needAsyncLoad) {
+        for (let f = fromNum - 1; f < toNum; f++) {
+          const frame = editor.state.frames[f];
+          if (!frame) continue;
+          if (!editor.dataManager?.getFrameObject(frame.id)) {
+            if (badge) badge.textContent = `⏳ Nạp F${f + 1}...`;
+            if (typeof editor.loadFrame === "function") {
+              await editor.loadFrame(f, false, true);
+              await new Promise((r) => setTimeout(r, 40));
+            }
+          }
+        }
+      }
+
+      // 2. Thu thập toàn bộ tọa độ của track qua các frame
+      const trackPoints = [];
+      for (let f = fromNum - 1; f < toNum; f++) {
+        const frame = editor.state.frames[f];
+        if (!frame) continue;
+        let objs = editor.dataManager?.getFrameObject(frame.id) || [];
+        if (objs.length === 0 && f === editor.state.frameIndex) {
+          objs = getAll3DObjects();
+        }
+        const match = objs.find((o) => {
+          const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
+          const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
+          const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "").trim().toLowerCase();
+          return (qName && (tn === qName || tid === qName || id === qName)) || (qId && (tid === qId || tn === qId || id === qId));
+        });
+
+        if (match && match.position) {
+          trackPoints.push({
+            frameIndex: f,
+            frameNum: f + 1,
+            frame: frame,
+            obj: match,
+            x: match.position.x,
+            y: match.position.y,
+            z: match.position.z,
+            yaw: (match.rotation && Number.isFinite(match.rotation.z)) ? match.rotation.z : 0,
+          });
+        }
+      }
+
+      if (trackPoints.length < 3) {
+        alert(`Track #${trackName} chỉ có ${trackPoints.length} frame trong khoảng F${fromNum} - F${toNum}. Cần tối thiểu 3 frame để làm mượt quỹ đạo!`);
+        return;
+      }
+
+      // 3. Áp dụng bộ lọc Gaussian / Weighted Moving Average (hạt nhân [0.25, 0.5, 0.25])
+      // Giữ nguyên điểm đầu và điểm cuối làm neo chuẩn
+      let smoothedCount = 0;
+      const N = trackPoints.length;
+      const smoothedData = [];
+
+      for (let i = 0; i < N; i++) {
+        if (i === 0 || i === N - 1) {
+          // Điểm neo đầu và cuối giữ nguyên
+          smoothedData.push({
+            x: trackPoints[i].x,
+            y: trackPoints[i].y,
+            z: trackPoints[i].z,
+            yaw: trackPoints[i].yaw,
+          });
+          continue;
+        }
+
+        const prev = trackPoints[i - 1];
+        const curr = trackPoints[i];
+        const next = trackPoints[i + 1];
+
+        // Nếu 3 frame liên tiếp (không bị ngắt quãng quá 2 frame)
+        if (curr.frameNum - prev.frameNum <= 2 && next.frameNum - curr.frameNum <= 2) {
+          const sx = 0.25 * prev.x + 0.5 * curr.x + 0.25 * next.x;
+          const sy = 0.25 * prev.y + 0.5 * curr.y + 0.25 * next.y;
+          const sz = 0.25 * prev.z + 0.5 * curr.z + 0.25 * next.z;
+
+          // Làm mượt góc Yaw sử dụng vector tròn (chống lỗi bước nhảy ±PI và chống NaN)
+          const pYaw = Number.isFinite(prev.yaw) ? prev.yaw : 0;
+          const cYaw = Number.isFinite(curr.yaw) ? curr.yaw : 0;
+          const nYaw = Number.isFinite(next.yaw) ? next.yaw : 0;
+          const cosAvg = 0.25 * Math.cos(pYaw) + 0.5 * Math.cos(cYaw) + 0.25 * Math.cos(nYaw);
+          const sinAvg = 0.25 * Math.sin(pYaw) + 0.5 * Math.sin(cYaw) + 0.25 * Math.sin(nYaw);
+          let sYaw = Math.atan2(sinAvg, cosAvg);
+          if (!Number.isFinite(sYaw)) sYaw = cYaw;
+
+          smoothedData.push({
+            x: Number(sx.toFixed(3)),
+            y: Number(sy.toFixed(3)),
+            z: Number(sz.toFixed(3)),
+            yaw: Number(sYaw.toFixed(4)),
+          });
+          smoothedCount++;
+        } else {
+          smoothedData.push({
+            x: curr.x,
+            y: curr.y,
+            z: curr.z,
+            yaw: Number.isFinite(curr.yaw) ? curr.yaw : 0,
+          });
+        }
+      }
+
+      // 4. Áp dụng tọa độ và góc xoay đã làm mượt vào các frame
+      for (let i = 0; i < N; i++) {
+        const item = trackPoints[i];
+        const sm = smoothedData[i];
+        item.obj.position.x = sm.x;
+        item.obj.position.y = sm.y;
+        item.obj.position.z = sm.z;
+        if (item.obj.rotation && Number.isFinite(sm.yaw)) {
+          item.obj.rotation.z = sm.yaw;
+          if (item.obj.quaternion && typeof item.obj.quaternion.setFromEuler === "function") {
+            item.obj.quaternion.setFromEuler(item.obj.rotation);
+          }
+        }
+        item.frame.needSave = true;
+
+        // Nếu là frame hiện tại đang hiển thị: cập nhật trực tiếp Three.js
+        if (item.frameIndex === editor.state.frameIndex) {
+          applyObjectTransform(item.obj, {
+            position: { x: sm.x, y: sm.y, z: sm.z },
+            rotation: item.obj.rotation.clone(),
+          });
+        }
+      }
+
+      // Quay lại frame ban đầu nếu bị chuyển
+      if (typeof editor.loadFrame === "function" && editor.state.frameIndex !== originalFrameIndex) {
+        await editor.loadFrame(originalFrameIndex, false, true);
+      }
+
+      const curF = editor.getCurrentFrame?.();
+      if (curF) curF.needSave = true;
+      persistEditorState();
+
+      if (badge) {
+        badge.textContent = `🟢 Mượt ${smoothedCount}F (#${trackName})`;
+        badge.style.background = "#14532d";
+        badge.style.color = "#86efac";
+      }
+
+      const benchmarkBanner = panel?.querySelector('[data-role="ref-benchmark-status"]');
+      if (benchmarkBanner) {
+        benchmarkBanner.style.display = "block";
+        benchmarkBanner.innerHTML = `🌊 <b>Đã làm mượt quỹ đạo Track #${trackName}!</b><br/><span style="color:#6ee7b7;font-size:9px;font-weight:700;">✓ Đã lọc phẳng ${smoothedCount} frame (F${trackPoints[0].frameNum} ➜ F${trackPoints[N - 1].frameNum})!</span><br/><span style="color:#cbd5e1;font-size:8.5px;">Triệt tiêu 100% rung lắc tia LiDAR. Nhớ bấm <b>Save</b> để lưu bài.</span>`;
+      }
+    } catch (err) {
+      console.error("Lỗi khi làm mượt quỹ đạo:", err);
+      alert("Lỗi khi làm mượt quỹ đạo: " + (err?.message || err));
+    } finally {
+      isSmoothingTrack = false;
+      if (smoothBtn) {
+        smoothBtn.disabled = false;
+        smoothBtn.style.opacity = "1";
+        smoothBtn.textContent = "🌊 Làm Mượt Quỹ Đạo (Alt+T)";
+      }
+    }
+  }
+
+  // ==========================================
+  // CÁCH 4: KHÓA BÁM TÂM XE (CAMERA AUTO-FOLLOW)
+  // ==========================================
+  function applyCameraAutoFollow() {
+    const panel = document.getElementById(POSITION_PANEL_ID);
+    const isFollowEnabled =
+      panel?.querySelector('[data-role="camera-auto-follow"]')?.checked ??
+      localStorage.getItem("auto-lwh-camera-follow") !== "false";
+    if (!isFollowEnabled) return;
+
+    const obj = getSelectedObject();
+    if (!obj || !obj.position) return;
+    const trackId = String(
+      obj.userData?.trackId ?? obj.userData?.trackName ?? obj.uuid ?? "",
+    );
+    if (!trackId) return;
+
+    const prevRec = lastTrackActiveRecords.get(trackId);
+    const curF = getCurrentFrameNumber() || 1;
+    if (!prevRec || !prevRec.position || prevRec.frameIndex === curF) return;
+
+    const dx = obj.position.x - prevRec.position.x;
+    const dy = obj.position.y - prevRec.position.y;
+    const dz = obj.position.z - prevRec.position.z;
+    const deltaDist = Math.hypot(dx, dy);
+
+    // Chỉ follow nếu chuyển động hợp lý (< 40m giữa 2 frame liên tiếp của cùng 1 xe)
+    if (deltaDist > 0.005 && deltaDist < 40.0) {
+      const pc = getPagePc();
+      if (!pc || !Array.isArray(pc.renderViews)) return;
+
+      // 1. Follow trong 3D Main View (Perspective Camera & OrbitControls)
+      const mainView = pc.renderViews.find(
+        (v) => v && v.camera && v.camera.isPerspectiveCamera,
+      );
+      if (mainView && mainView.camera) {
+        const controls =
+          mainView.actionMap?.["orbit-control"]?.control ||
+          window.mainview?.actionMap?.["orbit-control"]?.control;
+        if (controls && controls.target) {
+          controls.target.x += dx;
+          controls.target.y += dy;
+          controls.target.z += dz;
+          mainView.camera.position.x += dx;
+          mainView.camera.position.y += dy;
+          mainView.camera.position.z += dz;
+          if (typeof controls.update === "function") controls.update();
+        } else {
+          mainView.camera.position.x += dx;
+          mainView.camera.position.y += dy;
+          mainView.camera.position.z += dz;
+        }
+        if (typeof mainView.render === "function") mainView.render();
+      }
+
+      // 2. Follow trong 2D Side Views (Overhead, Side, Rear)
+      pc.renderViews.forEach((view) => {
+        if (
+          view &&
+          typeof view.fitObject === "function" &&
+          view.camera &&
+          view.camera.isOrthographicCamera
+        ) {
+          view.__pan_x__ = 0;
+          view.__pan_y__ = 0;
+          view.fitObject(obj);
+          if (typeof view.render === "function") view.render();
+        }
+      });
+    }
+  }
+
+  // ==========================================
+  // CÁCH 3: KHÓA HƯỚNG NGẮM ĐÍCH (AIM-AT TARGET POINT CONSTRAINT)
+  // Biển báo / vật đứng yên luôn xoay góc Yaw hướng về điểm đích cố định (kể cả khi xe rẽ / ôm cua)
+  // ==========================================
+  const AIM_TARGET_STORAGE_KEY = "auto-lwh-aim-target";
+  const FACE_OFFSETS = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+
+  let aimTargetState = {
+    active: false,
+    point: null,             // { x, y, z }
+    mode: "point",           // "point" | "track" | "ego"
+    targetTrackId: "",
+    faceOffset: 0,           // rad
+    autoOnFrameChange: true,
+    worldAnchor: true,       // Bám theo đường cong thế giới
+    anchorBasePoint: null,   // { x, y, z, yaw } của vật ở frame chốt điểm
+    anchorFrame: null,
+    anchorTrackName: "",     // Tên/ID của track làm mốc khi chốt điểm ngắm
+    framePoints: {},         // Cache { [frameNum]: { x, y, z } }
+  };
+
+  let isPickingAimPoint = false;
+  let aimTargetMarkerMesh = null;
+
+  function loadAimTargetState() {
+    try {
+      const raw = localStorage.getItem(AIM_TARGET_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        aimTargetState = Object.assign(aimTargetState, parsed);
+        if (!aimTargetState.framePoints || typeof aimTargetState.framePoints !== "object") {
+          aimTargetState.framePoints = {};
+        }
+      }
+    } catch (_) {}
+  }
+
+  function saveAimTargetState() {
+    try {
+      localStorage.setItem(AIM_TARGET_STORAGE_KEY, JSON.stringify(aimTargetState));
+    } catch (_) {}
+  }
+
+  function findLidarClusterCentroidNear(point, searchRadius = 2.0, zTolerance = 1.5) {
+    if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+    try {
+      const pc = getPagePc();
+      const groupPoints = pc?.groupPoints?.children?.[0];
+      const posAttr = groupPoints?.geometry?.getAttribute("position");
+      if (!posAttr || !posAttr.array || posAttr.count === 0) return null;
+
+      const arr = posAttr.array;
+      const count = posAttr.count;
+      const tx = point.x;
+      const ty = point.y;
+      const tz = Number.isFinite(point.z) ? point.z : 0;
+      const rSq = searchRadius * searchRadius;
+
+      let hits = [];
+      for (let i = 0; i < count; i++) {
+        const px = arr[i * 3];
+        const py = arr[i * 3 + 1];
+        const pz = arr[i * 3 + 2];
+
+        if (Math.abs(pz - tz) > zTolerance) continue;
+        const dx = px - tx;
+        const dy = py - ty;
+        const dSq = dx * dx + dy * dy;
+        if (dSq <= rSq) {
+          hits.push({ x: px, y: py, z: pz, dSq });
+          if (hits.length > 1000) break;
+        }
+      }
+
+      if (hits.length >= 3) {
+        // Lọc lấy 50% các điểm gần tâm dự đoán nhất để loại bỏ nhiễu biên
+        hits.sort((a, b) => a.dSq - b.dSq);
+        const takeN = Math.max(3, Math.min(hits.length, Math.ceil(hits.length * 0.5)));
+        let sumX = 0, sumY = 0, sumZ = 0;
+        for (let j = 0; j < takeN; j++) {
+          sumX += hits[j].x;
+          sumY += hits[j].y;
+          sumZ += hits[j].z;
+        }
+        return {
+          x: Number((sumX / takeN).toFixed(3)),
+          y: Number((sumY / takeN).toFixed(3)),
+          z: Number((sumZ / takeN).toFixed(3)),
+          count: takeN,
+        };
+      }
+    } catch (e) {
+      console.warn("findLidarClusterCentroidNear error:", e);
+    }
+    return null;
+  }
+
+  function getResolvedAimTargetPoint(targetObj, targetFrameIndex) {
+    if (!aimTargetState.point && aimTargetState.mode !== "ego") return null;
+
+    // Mode 1: Tâm xe chở cảm biến (Ego Vehicle: 0, 0)
+    if (aimTargetState.mode === "ego") {
+      return { x: 0, y: 0, z: targetObj?.position?.z || 0 };
+    }
+
+    // Mode 2: Bám theo 1 Track ID khác
+    if (aimTargetState.mode === "track" && aimTargetState.targetTrackId) {
+      const editor = window.editor || window.__APP__?.editor || window.app?.editor;
+      const fIdx = typeof targetFrameIndex === "number" ? targetFrameIndex : (editor?.state?.frameIndex || 0);
+      const frame = editor?.state?.frames?.[fIdx];
+      let objs = [];
+      if (frame && editor?.dataManager?.getFrameObject) {
+        objs = editor.dataManager.getFrameObject(frame.id) || [];
+      }
+      if (objs.length === 0) objs = getAll3DObjects();
+
+      const qTrack = String(aimTargetState.targetTrackId).trim().toLowerCase().replace(/^#/, "");
+      const match = objs.find((o) => {
+        if (o === targetObj || (o.uuid && targetObj && o.uuid === targetObj.uuid)) return false;
+        const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
+        const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
+        const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "").trim().toLowerCase();
+        return tn === qTrack || tid === qTrack || id === qTrack;
+      });
+      if (match && match.position) {
+        return { x: match.position.x, y: match.position.y, z: match.position.z };
+      }
+    }
+
+    // Mode 3: Điểm tự do đã chấm (Point)
+    if (!aimTargetState.point) return null;
+
+    const editor = window.editor || window.__APP__?.editor || window.app?.editor;
+    const currentFrameNum = getCurrentFrameNumber() || ((editor?.state?.frameIndex ?? 0) + 1);
+    const targetFrameNum = typeof targetFrameIndex === "number" ? targetFrameIndex + 1 : currentFrameNum;
+    const anchorFrameNum = aimTargetState.anchorFrame || 1;
+
+    // 1. Đúng frame chốt điểm (anchor frame): Giữ nguyên tọa độ đã chấm trên LiDAR của frame này.
+    if (targetFrameNum === anchorFrameNum) {
+      return {
+        x: aimTargetState.point.x,
+        y: aimTargetState.point.y,
+        z: aimTargetState.point.z ?? (targetObj?.position?.z || 0),
+      };
+    }
+
+    // 2. Nếu đã có cache tọa độ đích ĐÃ HÚT LIDAR THẬT THÀNH CÔNG của frame này:
+    if (aimTargetState.framePoints && aimTargetState.framePoints[targetFrameNum]) {
+      return aimTargetState.framePoints[targetFrameNum];
+    }
+
+    // 3. Tính toán vị trí điểm đích trên frame khác:
+    // Cả biển báo và điểm đích (góc cây cầu / cột mốc) đều là vật thể đứng yên trong thế giới thực.
+    const anchorBase = aimTargetState.anchorBasePoint;
+    let refPos = null;
+
+    // Ưu tiên tìm đúng vật mốc theo anchorTrackName
+    const fIdx = targetFrameNum - 1;
+    const frame = editor?.state?.frames?.[fIdx];
+    let objs = (frame && editor?.dataManager?.getFrameObject) ? editor.dataManager.getFrameObject(frame.id) || [] : [];
+    if (objs.length === 0 && fIdx === editor?.state?.frameIndex) objs = getAll3DObjects();
+
+    const qTrack = String(aimTargetState.anchorTrackName || "").trim().toLowerCase().replace(/^#/, "");
+    if (qTrack && objs.length > 0) {
+      const match = objs.find((o) => {
+        const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
+        const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
+        return tn === qTrack || tid === qTrack;
+      });
+      if (match && match.position) refPos = match.position;
+    }
+
+    if (!refPos && targetObj && targetObj.position) {
+      refPos = targetObj.position;
+    }
+    if (!refPos && objs.length > 0 && objs[0]?.position) {
+      refPos = objs[0].position;
+    }
+
+    if (refPos && anchorBase && Number.isFinite(anchorBase.x)) {
+      // Vector tương đối giữa điểm đích và biển báo ở frame gốc
+      const deltaX = aimTargetState.point.x - anchorBase.x;
+      const deltaY = aimTargetState.point.y - anchorBase.y;
+      const deltaZ = (aimTargetState.point.z ?? 0) - (anchorBase.z ?? 0);
+
+      // Điểm ước tính ban đầu ở frame mới theo độ dịch chuyển thế giới
+      let predPoint = {
+        x: refPos.x + deltaX,
+        y: refPos.y + deltaY,
+        z: (refPos.z ?? 0) + deltaZ,
+      };
+
+      // 4. Hút chính xác vào cụm hạt LiDAR của góc cây cầu / cột mốc nếu đang ở frame hiện tại
+      if (targetFrameNum === currentFrameNum) {
+        const frameDiff = Math.abs(targetFrameNum - anchorFrameNum);
+        const dynamicRadius = Math.min(3.0, 1.8 + frameDiff * 0.15);
+        const cluster = findLidarClusterCentroidNear(predPoint, dynamicRadius, 1.5);
+        if (cluster) {
+          predPoint = { x: cluster.x, y: cluster.y, z: cluster.z };
+          // CHỈ lưu vào cache khi đã hút được hạt LiDAR thật!
+          if (!aimTargetState.framePoints) aimTargetState.framePoints = {};
+          aimTargetState.framePoints[targetFrameNum] = predPoint;
+          saveAimTargetState();
+        }
+      }
+
+      return predPoint;
+    }
+
+    // Nếu không có vật tham chiếu ở frame này, giữ nguyên điểm đã lưu
+    return {
+      x: aimTargetState.point.x,
+      y: aimTargetState.point.y,
+      z: aimTargetState.point.z ?? (targetObj?.position?.z || 0),
+    };
+  }
+
+  function applyAimAtTarget(obj) {
+    const targetObj = obj || getSelectedObject();
+    const panel = document.getElementById(POSITION_PANEL_ID);
+    const badge = panel?.querySelector('[data-role="aim-target-badge"]');
+
+    if (!targetObj || !targetObj.position) {
+      if (badge) {
+        badge.textContent = "Chưa chọn box";
+        badge.style.background = "#7f1d1d";
+        badge.style.color = "#fca5a5";
+      }
+      return false;
+    }
+
+    const targetPoint = getResolvedAimTargetPoint(targetObj);
+    if (!targetPoint || !Number.isFinite(targetPoint.x) || !Number.isFinite(targetPoint.y)) {
+      if (badge) {
+        badge.textContent = "Chưa ghim đích";
+        badge.style.background = "#713f12";
+        badge.style.color = "#fde047";
+      }
+      return false;
+    }
+
+    const dx = targetPoint.x - targetObj.position.x;
+    const dy = targetPoint.y - targetObj.position.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < 0.001 || !Number.isFinite(dist)) return false;
+
+    const baseAngle = Math.atan2(dy, dx);
+    const faceOffset = Number(aimTargetState.faceOffset) || 0;
+    let finalYaw = baseAngle + faceOffset;
+    if (!Number.isFinite(finalYaw)) return false;
+    finalYaw = Math.atan2(Math.sin(finalYaw), Math.cos(finalYaw));
+    if (!Number.isFinite(finalYaw)) return false;
+
+    if (targetObj.rotation) {
+      const newRot = targetObj.rotation.clone ? targetObj.rotation.clone() : { x: 0, y: 0, z: 0 };
+      newRot.z = Number(finalYaw.toFixed(4));
+      applyObjectTransform(targetObj, { rotation: newRot });
+    }
+
+    const curFrame = window.editor?.getCurrentFrame?.();
+    if (curFrame) curFrame.needSave = true;
+    persistEditorState();
+
+    updateAimTargetUI(dist);
+    return true;
+  }
+
+  function cycleAimFaceOffset() {
+    const cur = Number(aimTargetState.faceOffset) || 0;
+    let idx = 0;
+    let minDiff = Infinity;
+    FACE_OFFSETS.forEach((val, i) => {
+      const diff = Math.abs(Math.atan2(Math.sin(cur - val), Math.cos(cur - val)));
+      if (diff < minDiff) {
+        minDiff = diff;
+        idx = i;
+      }
+    });
+    const nextIdx = (idx + 1) % FACE_OFFSETS.length;
+    aimTargetState.faceOffset = FACE_OFFSETS[nextIdx];
+    saveAimTargetState();
+
+    const curObj = getSelectedObject();
+    if (curObj && (aimTargetState.point || aimTargetState.mode === "ego")) {
+      applyAimAtTarget(curObj);
+    }
+    updateAimTargetUI();
+  }
+
+  function startAimPickingMode() {
+    isPickingAimPoint = true;
+    document.body.style.cursor = "crosshair";
+    const pc = getPagePc();
+    if (pc && Array.isArray(pc.renderViews)) {
+      pc.renderViews.forEach((v) => {
+        if (v?.container) v.container.style.cursor = "crosshair";
+      });
+    }
+    updateAimTargetUI();
+  }
+
+  function stopAimPickingMode() {
+    isPickingAimPoint = false;
+    document.body.style.cursor = "";
+    const pc = getPagePc();
+    if (pc && Array.isArray(pc.renderViews)) {
+      pc.renderViews.forEach((v) => {
+        if (v?.container) v.container.style.cursor = "";
+      });
+    }
+    updateAimTargetUI();
+  }
+
+  function calculateWorldPointFromView(view, clientX, clientY) {
+    if (!view || !view.camera) return null;
+    const dom = view.renderer?.domElement || view.container;
+    if (!dom) return null;
+    const rect = dom.getBoundingClientRect();
+    const width = dom.clientWidth || rect.width;
+    const height = dom.clientHeight || rect.height;
+    if (width <= 0 || height <= 0) return null;
+
+    const canvasX = clientX - rect.left;
+    const canvasY = clientY - rect.top;
+    const targetZ = getSelectedObject()?.position?.z ?? 0;
+
+    const ndcX = (canvasX / width) * 2 - 1;
+    const ndcY = -(canvasY / height) * 2 + 1;
+
+    let rayOrigin = null;
+    let rayDir = null;
+
+    // Khởi tạo Raycaster hoặc tính vector tia nhìn (Ray) từ Camera
+    try {
+      let raycaster = view.raycaster;
+      if (!raycaster && view.camera?.position?.constructor) {
+        const pc = getPagePc();
+        const rcView = pc?.renderViews?.find((v) => v && v.raycaster);
+        if (rcView?.raycaster?.constructor) {
+          raycaster = new rcView.raycaster.constructor();
+        }
+      }
+      if (raycaster && typeof raycaster.setFromCamera === "function") {
+        raycaster.setFromCamera({ x: ndcX, y: ndcY }, view.camera);
+        if (raycaster.ray) {
+          rayOrigin = raycaster.ray.origin.clone
+            ? raycaster.ray.origin.clone()
+            : { ...raycaster.ray.origin };
+          rayDir = raycaster.ray.direction.clone
+            ? raycaster.ray.direction.clone()
+            : { ...raycaster.ray.direction };
+        }
+      }
+      if (!rayOrigin && view.camera?.position?.constructor) {
+        const Vector3 = view.camera.position.constructor;
+        if (view.camera.isPerspectiveCamera) {
+          const targetPos = new Vector3(ndcX, ndcY, 0.5);
+          targetPos.unproject(view.camera);
+          rayOrigin = view.camera.position.clone();
+          rayDir = targetPos.sub(rayOrigin).normalize();
+        } else if (view.camera.isOrthographicCamera) {
+          const origin = new Vector3(ndcX, ndcY, -1).unproject(view.camera);
+          const targetPos = new Vector3(ndcX, ndcY, 1).unproject(view.camera);
+          rayOrigin = origin;
+          rayDir = targetPos.sub(origin).normalize();
+        }
+      }
+    } catch (err) {
+      console.warn("Raycaster error in calculateWorldPointFromView:", err);
+    }
+
+    // 1. Kiểm tra nếu click trúng bề mặt của một 3D Bounding Box nào đó trong scene
+    try {
+      const pc = getPagePc();
+      const annotate3D = pc?.getAnnotate3D ? pc.getAnnotate3D() : null;
+      if (
+        annotate3D &&
+        annotate3D.length > 0 &&
+        view.raycaster &&
+        typeof view.raycaster.intersectObjects === "function"
+      ) {
+        const hits = view.raycaster.intersectObjects(annotate3D, true);
+        if (hits && hits.length > 0 && hits[0].point) {
+          return {
+            x: Number(hits[0].point.x.toFixed(3)),
+            y: Number(hits[0].point.y.toFixed(3)),
+            z: Number(hits[0].point.z.toFixed(3)),
+            isBoxSurface: true,
+          };
+        }
+      }
+    } catch (_) {}
+
+    // 2. ƯU TIÊN SỐ 1: BẮT ĐIỂM TRỰC TIẾP TRÊN HẠT ĐIỂM LIDAR THẬT (LIDAR CLOUD SNAPPING)
+    // Sắp xếp ưu tiên: Chọn điểm ở BỀ MẶT PHÍA TRƯỚC (gần camera nhất) nằm trong vùng chuột
+    // Tuyệt đối không chọn điểm ngẫu nhiên ở hậu cảnh/background sâu phía sau.
+    try {
+      const pc = getPagePc();
+      const groupPoints = pc?.groupPoints?.children?.[0];
+      const posAttr = groupPoints?.geometry?.getAttribute("position");
+      if (posAttr && posAttr.array && posAttr.count > 0 && rayOrigin && rayDir) {
+        const arr = posAttr.array;
+        const count = posAttr.count;
+
+        const ox = rayOrigin.x, oy = rayOrigin.y, oz = rayOrigin.z;
+        const dx = rayDir.x, dy = rayDir.y, dz = rayDir.z;
+        const isOrtho = Boolean(view.camera.isOrthographicCamera);
+
+        // Góc mở tương đương bán kính chuột ~18 pixel trên màn hình
+        const angleRad = (18 / (height || 800)) * (isOrtho ? 1 : 2);
+        const maxTanAngleSq = angleRad * angleRad;
+        let maxOrthoDistSq = 0.5 * 0.5;
+        if (isOrtho && view.camera.right && view.camera.left) {
+          const pxSize =
+            Math.abs(view.camera.right - view.camera.left) / (width || 800);
+          maxOrthoDistSq = Math.max(0.04, (18 * pxSize) ** 2);
+        }
+
+        let hits = [];
+        let minT = Infinity;
+
+        for (let i = 0; i < count; i++) {
+          const px = arr[i * 3];
+          const py = arr[i * 3 + 1];
+          const pz = arr[i * 3 + 2];
+
+          const vx = px - ox;
+          const vy = py - oy;
+          const vz = pz - oz;
+
+          const t = vx * dx + vy * dy + vz * dz;
+          if (t <= 0.2 || t > 180.0) continue;
+
+          const projX = ox + t * dx;
+          const projY = oy + t * dy;
+          const projZ = oz + t * dz;
+
+          const rayDistSq =
+            (px - projX) ** 2 + (py - projY) ** 2 + (pz - projZ) ** 2;
+
+          let isHit = false;
+          let distMeasure = rayDistSq;
+
+          if (isOrtho) {
+            if (rayDistSq <= maxOrthoDistSq) {
+              isHit = true;
+              distMeasure = rayDistSq;
+            }
+          } else {
+            const tanSq = rayDistSq / (t * t);
+            if (tanSq <= maxTanAngleSq) {
+              isHit = true;
+              distMeasure = tanSq;
+            }
+          }
+
+          if (isHit) {
+            hits.push({ x: px, y: py, z: pz, t, distMeasure });
+            if (t < minT) minT = t;
+            if (hits.length > 600) break;
+          }
+        }
+
+        if (hits.length > 0) {
+          // Lọc các điểm thuộc bề mặt phía trước (trong vòng 0.45m tính từ điểm gần camera nhất)
+          const frontHits = hits.filter((h) => h.t <= minT + 0.45);
+          // Chọn điểm nằm gần tâm con trỏ chuột nhất trong cụm phía trước
+          frontHits.sort((a, b) => a.distMeasure - b.distMeasure);
+          const best = frontHits[0];
+          return {
+            x: Number(best.x.toFixed(3)),
+            y: Number(best.y.toFixed(3)),
+            z: Number(best.z.toFixed(3)),
+            isLidarPoint: true,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("LiDAR point snapping error:", err);
+    }
+
+    // 3. Thử hàm canvasToWorld bản địa của Xtreme1
+    if (typeof view.canvasToWorld === "function") {
+      try {
+        const Vector2 =
+          view.camera?.position?.constructor || window.THREE?.Vector2;
+        if (Vector2) {
+          const pt = view.canvasToWorld(new Vector2(canvasX, canvasY));
+          if (pt && Number.isFinite(pt.x) && Number.isFinite(pt.y)) {
+            return {
+              x: Number(pt.x.toFixed(3)),
+              y: Number(pt.y.toFixed(3)),
+              z: Number.isFinite(pt.z)
+                ? Number(pt.z.toFixed(3))
+                : Number(targetZ.toFixed(3)),
+              isGroundPlane: true,
+            };
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 4. Cắt mặt phẳng LiDAR ground plane nếu có
+    try {
+      const pc = getPagePc();
+      const ground = pc?.ground?.plane;
+      if (ground && rayOrigin && rayDir) {
+        const Vector3 = rayOrigin.constructor;
+        const intersectP = new Vector3();
+        if (view.raycaster?.ray?.intersectPlane) {
+          const res = view.raycaster.ray.intersectPlane(ground, intersectP);
+          if (res && Number.isFinite(res.x) && Number.isFinite(res.y)) {
+            return {
+              x: Number(res.x.toFixed(3)),
+              y: Number(res.y.toFixed(3)),
+              z: Number(res.z.toFixed(3)),
+              isGroundPlane: true,
+            };
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 5. Giao điểm tia Raycaster với mặt phẳng ngang Z = targetZ
+    if (rayOrigin && rayDir && Math.abs(rayDir.z) > 1e-5) {
+      const t = (targetZ - rayOrigin.z) / rayDir.z;
+      if (t > 0 && t < 300) {
+        return {
+          x: Number((rayOrigin.x + t * rayDir.x).toFixed(3)),
+          y: Number((rayOrigin.y + t * rayDir.y).toFixed(3)),
+          z: Number(targetZ.toFixed(3)),
+        };
+      }
+    }
+
+    // 6. Top-down Orthographic unproject
+    try {
+      if (view.camera.isOrthographicCamera && view.camera.position?.constructor) {
+        const Vector3 = view.camera.position.constructor;
+        const p = new Vector3(ndcX, ndcY, 0);
+        p.unproject(view.camera);
+        return {
+          x: Number(p.x.toFixed(3)),
+          y: Number(p.y.toFixed(3)),
+          z: Number(targetZ.toFixed(3)),
+        };
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  function handleAimPickPointerDown(e) {
+    if (!isPickingAimPoint) return;
+    if (
+      e.target.closest &&
+      (e.target.closest(`#${POSITION_PANEL_ID}`) ||
+        e.target.closest(".ant-modal, .header, .footer, .ant-layout-header"))
+    ) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const pc = getPagePc();
+    let pickedPoint = null;
+
+    if (pc && Array.isArray(pc.renderViews)) {
+      // Tìm view chứa chính xác phần tử được click
+      let matchedView = null;
+      for (const view of pc.renderViews) {
+        if (!view) continue;
+        const dom = view.renderer?.domElement || view.container;
+        if (dom && (dom === e.target || dom.contains(e.target))) {
+          matchedView = view;
+          break;
+        }
+      }
+
+      // Nếu chưa tìm thấy (do phần tử canvas có overlay), kiểm tra bounding box
+      // Sắp xếp các view con (Side views/Overhead) kiểm tra trước, Main view kiểm tra sau cùng
+      if (!matchedView) {
+        const sortedViews = [...pc.renderViews].sort((a, b) => {
+          const isMainA = a.camera?.isPerspectiveCamera || a.isMain || false;
+          const isMainB = b.camera?.isPerspectiveCamera || b.isMain || false;
+          if (isMainA && !isMainB) return 1;
+          if (!isMainA && isMainB) return -1;
+          return 0;
+        });
+
+        for (const view of sortedViews) {
+          if (!view) continue;
+          const dom = view.renderer?.domElement || view.container;
+          if (!dom) continue;
+          const rect = dom.getBoundingClientRect();
+          if (
+            e.clientX >= rect.left &&
+            e.clientX <= rect.right &&
+            e.clientY >= rect.top &&
+            e.clientY <= rect.bottom
+          ) {
+            matchedView = view;
+            break;
+          }
+        }
+      }
+
+      if (matchedView) {
+        pickedPoint = calculateWorldPointFromView(matchedView, e.clientX, e.clientY);
+      }
+    }
+
+    if (!pickedPoint && pc) {
+      const mainView =
+        pc.renderViews?.find((v) => v?.camera?.isPerspectiveCamera) ||
+        pc.renderViews?.[0];
+      if (mainView) {
+        pickedPoint = calculateWorldPointFromView(mainView, e.clientX, e.clientY);
+      }
+    }
+
+    if (pickedPoint) {
+      let curObj = getSelectedObject();
+      if (!curObj || !curObj.position) {
+        const all = getAll3DObjects();
+        if (all.length > 0) curObj = all[0];
+      }
+      const curF = getCurrentFrameNumber() || 1;
+      aimTargetState.active = true;
+      aimTargetState.mode = "point";
+      aimTargetState.point = {
+        x: Number(pickedPoint.x.toFixed(3)),
+        y: Number(pickedPoint.y.toFixed(3)),
+        z: Number(pickedPoint.z.toFixed(3)),
+      };
+      aimTargetState.targetTrackId = "";
+      aimTargetState.anchorFrame = curF;
+      aimTargetState.anchorTrackName = String(
+        curObj?.userData?.trackName || curObj?.userData?.trackId || "1"
+      );
+      aimTargetState.isLidarPoint = Boolean(pickedPoint.isLidarPoint);
+      aimTargetState.framePoints = {
+        [curF]: { ...aimTargetState.point },
+      };
+
+      if (curObj && curObj.position) {
+        aimTargetState.anchorBasePoint = {
+          x: curObj.position.x,
+          y: curObj.position.y,
+          z: curObj.position.z,
+          yaw:
+            curObj.rotation && Number.isFinite(curObj.rotation.z)
+              ? curObj.rotation.z
+              : 0,
+        };
+      }
+      saveAimTargetState();
+      stopAimPickingMode();
+
+      if (curObj) {
+        applyAimAtTarget(curObj);
+      } else {
+        updateAimTargetUI();
+      }
+    } else {
+      stopAimPickingMode();
+    }
+  }
+
+  function getOrCreateAimTargetMarker() {
+    const pc = getPagePc();
+    if (!pc || !pc.scene) return null;
+
+    if (aimTargetMarkerMesh) {
+      if (!aimTargetMarkerMesh.parent && pc.scene) {
+        pc.scene.add(aimTargetMarkerMesh);
+      }
+      return aimTargetMarkerMesh;
+    }
+
+    const refObj = getSelectedObject() || getAll3DObjects()[0];
+    if (!refObj) return null;
+
+    try {
+      const mesh = new refObj.constructor();
+      mesh.name = "__auto_lwh_aim_target_marker__";
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 9999;
+      mesh.raycast = () => {};
+
+      if (mesh.material) {
+        mesh.material = mesh.material.clone();
+        mesh.material.color.setHex(0x06b6d4); // Neon Cyan
+        mesh.material.transparent = true;
+        mesh.material.opacity = 0.9;
+        mesh.material.depthTest = false;
+        mesh.material.depthWrite = false;
+        mesh.material.toneMapped = false;
+      }
+      mesh.scale.set(0.35, 0.35, 0.35);
+      pc.scene.add(mesh);
+      aimTargetMarkerMesh = mesh;
+      return aimTargetMarkerMesh;
+    } catch (e) {
+      console.warn("Could not create aim target marker mesh:", e);
+      return null;
+    }
+  }
+
+  function updateAimTargetMarker(point) {
+    const mesh = getOrCreateAimTargetMarker();
+    const pc = getPagePc();
+    if (!mesh) {
+      pc?.render?.();
+      pc?.renderViews?.forEach((v) => v.render?.());
+      return;
+    }
+    if (!point || !aimTargetState.active) {
+      mesh.visible = false;
+      pc?.render?.();
+      pc?.renderViews?.forEach((v) => v.render?.());
+      return;
+    }
+    mesh.visible = true;
+    mesh.position.set(point.x, point.y, point.z);
+    mesh.updateMatrixWorld?.(true);
+    pc?.render?.();
+    pc?.renderViews?.forEach((v) => v.render?.());
+  }
+
+  function updateAimTargetUI(overrideDist) {
+    const panel = document.getElementById(POSITION_PANEL_ID);
+    if (!panel) return;
+
+    const badge = panel.querySelector('[data-role="aim-target-badge"]');
+    const textEl = panel.querySelector('[data-role="aim-coords-text"]');
+    const faceSelect = panel.querySelector('[data-role="aim-face-offset"]');
+    const autoCb = panel.querySelector('[data-role="aim-auto-frame-change"]');
+    const anchorCb = panel.querySelector('[data-role="aim-world-anchor"]');
+
+    if (faceSelect && !faceSelect.matches(":focus")) {
+      faceSelect.value = String(aimTargetState.faceOffset);
+    }
+    if (autoCb) autoCb.checked = Boolean(aimTargetState.autoOnFrameChange);
+    if (anchorCb) anchorCb.checked = Boolean(aimTargetState.worldAnchor);
+
+    const curObj = getSelectedObject();
+    const targetPoint = getResolvedAimTargetPoint(curObj);
+
+    if (isPickingAimPoint) {
+      if (badge) {
+        badge.textContent = "⏳ Click điểm ngắm...";
+        badge.style.background = "#78350f";
+        badge.style.color = "#fde047";
+      }
+      if (textEl) textEl.textContent = "Đang chờ click trên màn hình...";
+      return;
+    }
+
+    if (
+      !aimTargetState.active ||
+      (!aimTargetState.point && aimTargetState.mode !== "ego")
+    ) {
+      if (badge) {
+        badge.textContent = "Chưa ghim";
+        badge.style.background = "#164e63";
+        badge.style.color = "#67e8f9";
+      }
+      if (textEl) textEl.textContent = "(Chưa có tọa độ ngắm)";
+      updateAimTargetMarker(null);
+      return;
+    }
+
+    let distStr = "";
+    if (curObj && curObj.position && targetPoint) {
+      const d =
+        overrideDist !== undefined
+          ? overrideDist
+          : Math.hypot(
+              targetPoint.x - curObj.position.x,
+              targetPoint.y - curObj.position.y,
+            );
+      distStr = ` [${d.toFixed(1)}m]`;
+    }
+
+    if (aimTargetState.mode === "ego") {
+      if (badge) {
+        badge.textContent = `🚗 Xe (0,0)${distStr}`;
+        badge.style.background = "#1e1b4b";
+        badge.style.color = "#a5b4fc";
+      }
+      if (textEl) textEl.textContent = `Tâm xe (0, 0)${distStr}`;
+    } else if (aimTargetState.mode === "track") {
+      if (badge) {
+        badge.textContent = `🎯 #${aimTargetState.targetTrackId}${distStr}`;
+        badge.style.background = "#064e3b";
+        badge.style.color = "#6ee7b7";
+      }
+      if (textEl) {
+        const pStr = targetPoint
+          ? `(X:${targetPoint.x.toFixed(2)}, Y:${targetPoint.y.toFixed(2)})`
+          : "";
+        textEl.textContent = `Track #${aimTargetState.targetTrackId} ${pStr}${distStr}`;
+      }
+    } else {
+      const isLidar = Boolean(aimTargetState.isLidarPoint);
+      const curF = getCurrentFrameNumber() || 1;
+      const fPrefix = (aimTargetState.anchorFrame && curF !== aimTargetState.anchorFrame) ? `F${curF} ` : "";
+      if (badge) {
+        const tx = targetPoint
+          ? targetPoint.x.toFixed(1)
+          : aimTargetState.point.x.toFixed(1);
+        const ty = targetPoint
+          ? targetPoint.y.toFixed(1)
+          : aimTargetState.point.y.toFixed(1);
+        badge.textContent = isLidar
+          ? `🟢 ${fPrefix}LiDAR (${tx}, ${ty})${distStr}`
+          : `🎯 ${fPrefix}(${tx}, ${ty})${distStr}`;
+        badge.style.background = isLidar ? "#065f46" : "#0e7490";
+        badge.style.color = isLidar ? "#86efac" : "#cffafe";
+      }
+      if (textEl) {
+        const tx = targetPoint
+          ? targetPoint.x.toFixed(2)
+          : aimTargetState.point.x.toFixed(2);
+        const ty = targetPoint
+          ? targetPoint.y.toFixed(2)
+          : aimTargetState.point.y.toFixed(2);
+        const tz = targetPoint
+          ? (targetPoint.z !== undefined ? Number(targetPoint.z).toFixed(2) : "0.00")
+          : (aimTargetState.point?.z !== undefined ? Number(aimTargetState.point.z).toFixed(2) : "0.00");
+        const fInfo = (aimTargetState.anchorFrame && curF !== aimTargetState.anchorFrame) ? ` [Neo F${aimTargetState.anchorFrame}]` : "";
+        textEl.textContent = `${isLidar ? "🟢 LiDAR: " : ""}X: ${tx}, Y: ${ty}, Z: ${tz}${distStr}${fInfo}`;
+      }
+    }
+
+    updateAimTargetMarker(targetPoint);
+  }
+
+  async function batchAimSequence() {
+    const curObj = getSelectedObject();
+    const editor =
+      window.editor || window.__APP__?.editor || window.app?.editor;
+    const panel = document.getElementById(POSITION_PANEL_ID);
+    const badge = panel?.querySelector('[data-role="aim-target-badge"]');
+
+    if (!curObj) {
+      alert("Vui lòng chọn 1 biển báo / đối tượng cần áp dụng xoay Yaw!");
+      return;
+    }
+    if (!aimTargetState.point && aimTargetState.mode !== "ego") {
+      alert("Vui lòng chấm điểm ngắm (hoặc chọn Lấy Box Đích / Đón Đầu Xe) trước!");
+      return;
+    }
+
+    const trackName =
+      curObj.userData?.trackName || curObj.userData?.trackId || "1";
+    const trackId = curObj.userData?.trackId || "";
+    const totalF = Array.isArray(editor?.state?.frames)
+      ? editor.state.frames.length
+      : 1;
+
+    const fromInput = panel?.querySelector('[data-role="batch-from-frame"]');
+    const toInput = panel?.querySelector('[data-role="batch-to-frame"]');
+    let fromNum = parseInt(fromInput?.value, 10);
+    let toNum = parseInt(toInput?.value, 10);
+    if (!Number.isFinite(fromNum) || fromNum < 1) fromNum = 1;
+    if (!Number.isFinite(toNum) || toNum > totalF) toNum = totalF;
+
+    const qName = String(trackName).toLowerCase().replace(/^#/, "");
+    const qId = String(trackId).toLowerCase();
+
+    let rotatedCount = 0;
+    for (let f = fromNum - 1; f < toNum; f++) {
+      const frame = editor.state.frames[f];
+      if (!frame) continue;
+      let objs = editor.dataManager?.getFrameObject(frame.id) || [];
+      if (objs.length === 0 && f === editor.state.frameIndex) {
+        objs = getAll3DObjects();
+      }
+      const match = objs.find((o) => {
+        const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
+        const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
+        const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "").trim().toLowerCase();
+        return (
+          (qName && (tn === qName || tid === qName || id === qName)) ||
+          (qId && (tid === qId || tn === qId || id === qId))
+        );
+      });
+
+      if (match && match.position) {
+        const targetPoint = getResolvedAimTargetPoint(match, f);
+        if (targetPoint) {
+          const dx = targetPoint.x - match.position.x;
+          const dy = targetPoint.y - match.position.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 0.001 && Number.isFinite(dist)) {
+            const baseAngle = Math.atan2(dy, dx);
+            const faceOffset = Number(aimTargetState.faceOffset) || 0;
+            let finalYaw = baseAngle + faceOffset;
+            if (Number.isFinite(finalYaw)) {
+              finalYaw = Math.atan2(
+                Math.sin(finalYaw),
+                Math.cos(finalYaw),
+              );
+              if (Number.isFinite(finalYaw)) {
+                if (match.rotation) {
+                  match.rotation.z = Number(finalYaw.toFixed(4));
+                  if (
+                    match.quaternion &&
+                    typeof match.quaternion.setFromEuler === "function"
+                  ) {
+                    match.quaternion.setFromEuler(match.rotation);
+                  }
+                }
+                frame.needSave = true;
+                if (f === editor.state.frameIndex) {
+                  applyObjectTransform(match, { rotation: match.rotation.clone() });
+                }
+                rotatedCount++;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    persistEditorState();
+    if (badge) {
+      badge.textContent = `🟢 Xoay ${rotatedCount}F (#${trackName})`;
+      badge.style.background = "#14532d";
+      badge.style.color = "#86efac";
+    }
+  }
+
 
   function applySelectedYaw() {
     const obj = getSelectedObject();
     const panel = document.getElementById(POSITION_PANEL_ID);
     if (!obj || !obj.rotation || !panel) return false;
 
-    const yawDeg = Number(panel.querySelector('[data-role="yaw"]')?.value);
-    if (!Number.isFinite(yawDeg)) return false;
+    const yawInput = panel.querySelector('[data-role="yaw"]');
+    const yawDeg = parseFloat(yawInput?.value);
+    if (!Number.isFinite(yawDeg)) {
+      const curDeg = (Number(obj.rotation.z) || 0) * (180 / Math.PI);
+      if (yawInput) yawInput.value = Number.isFinite(curDeg) ? curDeg.toFixed(2) : "0.00";
+      return false;
+    }
 
     const yawRad = yawDeg * (Math.PI / 180);
     if (!Number.isFinite(yawRad)) return false;
     try {
       const newRotation = obj.rotation.clone();
       newRotation.z = yawRad;
+      if (newRotation.quaternion && typeof newRotation.quaternion.setFromEuler === "function") {
+        newRotation.quaternion.setFromEuler(newRotation);
+      }
       applyObjectTransform(obj, { rotation: newRotation });
       const pc = getPagePc();
       if (pc && typeof pc.selectObject === "function") pc.selectObject(obj);
@@ -2198,8 +3564,8 @@ function getSavedGroundOffset() {
             <!-- Hàng 1: ID, Ghim ID, Chọn Hướng Vị Trí, Độ Hở (Gap) -->
             <div style="display:flex;gap:4px;align-items:center;margin-bottom:5px;">
               <span style="font-size:9.5px;color:#94a3b8;flex:0 0 auto;">ID:</span>
-              <input data-role="ref-id-input" type="text" placeholder="1" style="width:32px;flex:0 0 32px;height:22px;text-align:center;padding:0 2px;border:1px solid #4338ca;border-radius:4px;background:#0f172a;color:#e0e7ff;font-size:10px;font-weight:700;" title="Nhập ID box tham chiếu (Cone A)" />
-              <button data-role="ref-pick-id-btn" title="Ghim ID của box đang chọn làm tham chiếu (Cone A)" style="width:20px;flex:0 0 20px;height:22px;border:1px solid #4f46e5;border-radius:4px;background:#312e81;color:#c7d2fe;cursor:pointer;font-size:10px;padding:0;display:flex;align-items:center;justify-content:center;">📌</button>
+              <input data-role="ref-id-input" type="text" placeholder="1" style="width:32px;flex:0 0 32px;height:22px;text-align:center;padding:0 2px;border:1px solid #4338ca;border-radius:4px;background:#0f172a;color:#e0e7ff;font-size:10px;font-weight:700;" title="Nhập ID box tham chiếu (Vật A)" />
+              <button data-role="ref-pick-id-btn" title="Ghim ID của box đang chọn làm tham chiếu (Vật A)" style="width:20px;flex:0 0 20px;height:22px;border:1px solid #4f46e5;border-radius:4px;background:#312e81;color:#c7d2fe;cursor:pointer;font-size:10px;padding:0;display:flex;align-items:center;justify-content:center;">📌</button>
               <select data-role="ref-sync-mode" style="flex:1;min-width:0;height:22px;padding:0 2px;border:1px solid #3d4755;border-radius:4px;background:#0f172a;color:#cbd5e1;font-size:9.5px;font-weight:600;outline:none;cursor:pointer;" title="Chọn vị trí đặt so với ID tham chiếu">
                 <option value="offset">🎯 Giữ cự ly chuẩn (ΔX, ΔY)</option>
                 <option value="line">➡️ Nối thẳng A → B</option>
@@ -2217,7 +3583,7 @@ function getSavedGroundOffset() {
               <input data-role="ref-gap-input" type="number" step="0.01" value="0.00" style="width:40px;flex:0 0 40px;height:22px;padding:0 2px;text-align:center;border:1px solid #3d4755;border-radius:4px;background:#0f172a;color:white;font-size:10px;font-weight:700;" title="Độ hở/khoảng cách (m) cho hướng đang chọn" />
               <span style="font-size:8.5px;color:#64748b;flex:0 0 auto;">m</span>
             </div>
-            <!-- Strip hiển thị khoảng cách Realtime giữa Cone B và Cone A -->
+            <!-- Strip hiển thị khoảng cách Realtime giữa Vật B và Vật A -->
             <div data-role="ref-distance-info" style="display:none;margin-bottom:5px;padding:3px 6px;border-radius:4px;background:#0b1329;border:1px solid #1e293b;font-size:9px;line-height:1.4;">
               <div style="display:flex;justify-content:space-between;align-items:center;color:#a5b4fc;font-weight:700;">
                 <span data-role="ref-dist-title">📏 Tới #--:</span>
@@ -2233,29 +3599,33 @@ function getSavedGroundOffset() {
             </div>
             <!-- Nút Chốt Chuẩn A-B to rõ ràng -->
             <div style="margin-bottom:5px;">
-              <button data-role="lock-benchmark-btn" title="Lưu cự ly & vị trí giữa Cone A và Cone B ở frame này làm chuẩn để sinh Cone B cho các frame sau" style="width:100%;height:25px;border:none;border-radius:4px;background:#7c3aed;color:white;cursor:pointer;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;">
-                ⭐ Chốt Chuẩn A-B (Lấy Frame Này)
+              <button data-role="lock-benchmark-btn" title="Lưu cự ly & vị trí giữa Vật A và Vật B ở frame này làm chuẩn để dời vị trí cho các frame sau" style="width:100%;height:25px;border:none;border-radius:4px;background:#7c3aed;color:white;cursor:pointer;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;">
+                ⭐ Chốt Chuẩn A-B (Biển/Cột/Cỏ/Cone)
               </button>
             </div>
-            <!-- Hàng 2: Nút Căn Vị Trí, Nút Sinh Cone B, và Checkbox Tự Khóa -->
+            <!-- Hàng 2: Nút Căn Vị Trí, Nút Dời Vật B, và Checkbox Tự Khóa -->
             <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;">
               <button data-role="apply-ref-z-btn" title="Căn chỉnh vị trí theo ID tham chiếu theo hướng và độ hở đã chọn (Phím tắt: Alt+Z)" style="flex:1;min-width:0;height:23px;border:none;border-radius:4px;background:#6366f1;color:white;cursor:pointer;font-size:9.5px;font-weight:700;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                 📐 Căn Vị Trí
               </button>
-              <button data-role="spawn-cone-b-btn" title="Căn chỉnh / dời vị trí Cone B theo cự ly chuẩn từ Cone A (Phím tắt: Alt+B)" style="flex:1;min-width:0;height:23px;border:none;border-radius:4px;background:#059669;color:white;cursor:pointer;font-size:9.5px;font-weight:700;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                ⚡ Dời Cone B (Alt+B)
+              <button data-role="spawn-cone-b-btn" title="Căn chỉnh / dời vị trí Vật B (Biển/Cột/Cỏ/Cone) theo cự ly chuẩn từ Vật A (Phím tắt: Alt+B)" style="flex:1;min-width:0;height:23px;border:none;border-radius:4px;background:#059669;color:white;cursor:pointer;font-size:9.5px;font-weight:700;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                ⚡ Dời Vật B (Alt+B)
               </button>
               <label style="display:flex;align-items:center;gap:2px;font-size:9px;color:#cbd5e1;cursor:pointer;flex:0 0 auto;" title="Hễ vẽ một box mới thì box đó sẽ tự động hút theo ID và hướng đã chọn">
                 <input data-role="auto-ref-z-checkbox" type="checkbox" style="cursor:pointer;" />
                 <span>Tự khóa</span>
               </label>
             </div>
-            <!-- Hàng 3: Tự dời vị trí khi đổi frame -->
+            <!-- Hàng 3: Tự dời vị trí khi đổi frame & Tag Cung Tròn R & Giữ Yaw B -->
             <div style="display:flex;align-items:center;justify-content:space-between;padding-top:4px;border-top:1px dashed #334155;font-size:9px;color:#cbd5e1;margin-bottom:4px;">
-              <label style="display:flex;align-items:center;gap:4px;cursor:pointer;" title="Khi chuyển sang frame mới, nếu có Cone B thì tự động chỉnh lại vị trí theo khoảng cách tới Cone A">
+              <label style="display:flex;align-items:center;gap:4px;cursor:pointer;" title="Khi chuyển sang frame mới, nếu có Vật B thì tự động chỉnh lại vị trí theo khoảng cách tới Vật A">
                 <input data-role="auto-spawn-cone" type="checkbox" />
                 <span style="color:#6ee7b7;font-weight:600;">Tự dời B khi qua Frame</span>
               </label>
+              <div style="display:flex;align-items:center;gap:5px;">
+                <span style="font-size:8.5px;color:#38bdf8;font-weight:600;" title="Ôm cua: Tự động khóa bán kính R và quét hút điểm LiDAR trên cung tròn">🔄 Cua Arc-R</span>
+                <span style="font-size:8.5px;color:#93c5fd;font-weight:600;" title="Phương án 3: Giữ nguyên 100% góc xoay Yaw của B, không can thiệp mặt đất">🎯 Giữ Yaw B</span>
+              </div>
             </div>
             <!-- Hàng 4: Ô INPUT ĐỒNG BỘ CHUỖI FRAME TRỰC TIẾP -->
             <div style="display:flex;align-items:center;gap:3px;padding-top:4px;border-top:1px dashed #334155;font-size:9px;color:#cbd5e1;">
@@ -2263,11 +3633,87 @@ function getSavedGroundOffset() {
               <input data-role="batch-from-frame" type="number" min="1" step="1" placeholder="Từ" style="width:36px;flex:0 0 36px;height:21px;text-align:center;padding:0 1px;border:1px solid #3d4755;border-radius:3px;background:#0f172a;color:#e0e7ff;font-size:9.5px;font-weight:700;" title="Frame bắt đầu" />
               <span style="color:#64748b;font-size:8.5px;">➜</span>
               <input data-role="batch-to-frame" type="number" min="1" step="1" placeholder="Đến" style="width:36px;flex:0 0 36px;height:21px;text-align:center;padding:0 1px;border:1px solid #3d4755;border-radius:3px;background:#0f172a;color:#e0e7ff;font-size:9.5px;font-weight:700;" title="Frame kết thúc" />
-              <button data-role="batch-sync-cone-btn" title="Chạy đồng bộ sinh Cone B từ Frame ... đến Frame ..." style="flex:1;min-width:0;height:21px;padding:0 4px;border:1px solid #059669;border-radius:3px;background:#065f46;color:#a7f3d0;font-size:9.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              <button data-role="batch-sync-cone-btn" title="Chạy đồng bộ dời Vật B từ Frame ... đến Frame ..." style="flex:1;min-width:0;height:21px;padding:0 4px;border:1px solid #059669;border-radius:3px;background:#065f46;color:#a7f3d0;font-size:9.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                 🚀 Đồng bộ
               </button>
             </div>
+            <!-- Hàng 5: NÚT LÀM MƯỢT QUỸ ĐẠO (SMOOTH TRACK - CÁCH 3) -->
+            <div style="padding-top:4px;border-top:1px dashed #334155;margin-top:4px;">
+              <button data-role="smooth-track-btn" title="Làm mượt quỹ đạo (X, Y, Z, Yaw) của Track đang chọn qua chuỗi frame, triệt tiêu 100% rung lắc tia LiDAR (Phím tắt: Alt+T)" style="width:100%;height:24px;border:none;border-radius:4px;background:#0284c7;color:white;cursor:pointer;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;">
+                🌊 Làm Mượt Quỹ Đạo (Alt+T)
+              </button>
+            </div>
           </div>
+
+          <!-- KHÓA HƯỚNG NGẮM YAW (AIM-AT TARGET) CARD -->
+          <details data-role="aim-target-card" open style="margin-bottom:6px;border:1px solid #0e7490;border-radius:6px;background:#082f49;">
+            <summary style="padding:4px 7px;font-weight:700;font-size:10px;color:#38bdf8;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;">
+              <span>🎯 KHÓA HƯỚNG NGẮM YAW (BIỂN BÁO)</span>
+              <div style="display:flex;gap:3px;align-items:center;">
+                <span data-role="aim-target-badge" style="font-size:8.5px;font-weight:600;padding:1px 4px;border-radius:3px;background:#164e63;color:#67e8f9;max-width:95px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="Trạng thái điểm ngắm">Chưa ghim</span>
+                <span class="toggle-arrow" style="font-size:8px;color:#64748b;margin-left:2px;display:inline-block;transition:transform 0.15s ease;">▼</span>
+              </div>
+            </summary>
+            <div style="padding:6px 7px;border-top:1px solid #0e7490;">
+              <!-- Hàng 1: Nút Chấm Điểm (Alt+A), Lấy Box Đang Chọn, Hướng Tâm Xe (0,0) -->
+              <div style="display:flex;gap:4px;margin-bottom:5px;">
+                <button data-role="pick-aim-point-btn" title="Click chuột vào mặt đường / vỉa hè trên 3D hoặc Overhead để ghim điểm ngắm (Phím tắt: Alt+A)" style="flex:1.2;min-width:0;height:24px;border:none;border-radius:4px;background:#0284c7;color:white;cursor:pointer;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:3px;white-space:nowrap;padding:0 3px;">
+                  🎯 Chấm Điểm (Alt+A)
+                </button>
+                <button data-role="aim-pick-selected-btn" title="Lấy box đang chọn (hoặc mốc) làm điểm ngắm cho biển báo" style="flex:1;min-width:0;height:24px;border:none;border-radius:4px;background:#0d9488;color:white;cursor:pointer;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:2px;white-space:nowrap;padding:0 2px;">
+                  📌 Lấy Box Đích
+                </button>
+                <button data-role="aim-to-ego-btn" title="Biển báo luôn tự động xoay mặt đón đầu xe LiDAR (0,0) qua mọi frame" style="flex:1;min-width:0;height:24px;border:none;border-radius:4px;background:#4f46e5;color:white;cursor:pointer;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:2px;white-space:nowrap;padding:0 2px;">
+                  🚗 Đón Đầu Xe
+                </button>
+              </div>
+
+              <!-- Hàng 2: Tọa độ điểm ngắm & Nút Xóa -->
+              <div data-role="aim-info-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;padding:3px 5px;border-radius:4px;background:#0f172a;border:1px solid #1e293b;font-size:9px;">
+                <div style="display:flex;align-items:center;gap:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                  <span style="color:#38bdf8;font-weight:700;">Đích:</span>
+                  <span data-role="aim-coords-text" style="color:#e2e8f0;font-weight:600;">(Chưa có tọa độ ngắm)</span>
+                </div>
+                <button data-role="aim-clear-btn" title="Xóa điểm ngắm hiện tại" style="height:17px;padding:0 4px;border:none;border-radius:3px;background:#475569;color:#e2e8f0;font-size:8.5px;font-weight:700;cursor:pointer;">✖️ Xóa</button>
+              </div>
+
+              <!-- Hàng 3: Chọn Mặt Biển Báo (Face Offset) & Nút Xoay Nhanh +90° -->
+              <div style="display:flex;gap:4px;align-items:center;margin-bottom:5px;">
+                <span style="font-size:9.5px;color:#94a3b8;flex:0 0 auto;">Mặt:</span>
+                <select data-role="aim-face-offset" style="flex:1;min-width:0;height:22px;padding:0 2px;border:1px solid #155e75;border-radius:4px;background:#0f172a;color:#cbd5e1;font-size:9.5px;font-weight:600;outline:none;cursor:pointer;" title="Chọn hướng mặt biển báo hướng về điểm ngắm">
+                  <option value="0">0°: Mặt Trước (+X)</option>
+                  <option value="1.5707963">▲ +90°: Mặt Sườn (+Y)</option>
+                  <option value="-1.5707963">▼ -90°: Mặt Sườn (-Y)</option>
+                  <option value="3.14159265">◀ 180°: Mặt Sau (-X)</option>
+                </select>
+                <button data-role="aim-cycle-face-btn" title="Xoay nhanh mặt biển thêm +90° (Alt+Shift+A)" style="height:22px;padding:0 5px;border:1px solid #0891b2;border-radius:4px;background:#164e63;color:#67e8f9;cursor:pointer;font-size:9px;font-weight:700;white-space:nowrap;">
+                  🔄 +90°
+                </button>
+              </div>
+
+              <!-- Hàng 4: Checkbox Tự Động & Neo Thế Giới -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:5px;font-size:9.5px;color:#cbd5e1;">
+                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;" title="Tự động xoay Yaw ngắm đích ngay khi chuyển sang frame tiếp theo">
+                  <input data-role="aim-auto-frame-change" type="checkbox" checked />
+                  <span style="color:#6ee7b7;font-weight:600;">⚡ Tự xoay khi đổi F</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;" title="Khóa điểm ngắm cố định theo thế giới / đường cong (bám theo Mốc A hoặc vật mốc qua các frame cua)">
+                  <input data-role="aim-world-anchor" type="checkbox" checked />
+                  <span style="color:#93c5fd;font-weight:600;">🌐 Neo Đường Cong</span>
+                </label>
+              </div>
+
+              <!-- Hàng 5: Nút Xoay Ngay và Nút Áp Dụng Cả Chuỗi Frame -->
+              <div style="display:flex;gap:4px;align-items:center;">
+                <button data-role="apply-aim-now-btn" title="Lập tức xoay đối tượng đang chọn ngắm về điểm đích (Phím tắt: Alt+A)" style="flex:1;min-width:0;height:23px;border:none;border-radius:4px;background:#059669;color:white;cursor:pointer;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:2px;">
+                  ⚡ Xoay Ngay (Alt+A)
+                </button>
+                <button data-role="batch-aim-sequence-btn" title="Quét toàn bộ chuỗi frame của track này và tự động xoay Yaw về điểm ngắm trên từng frame" style="flex:1;min-width:0;height:23px;border:none;border-radius:4px;background:#0284c7;color:white;cursor:pointer;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:2px;">
+                  🔄 Áp Dụng Chuỗi F
+                </button>
+              </div>
+            </div>
+          </details>
 
           <!-- TÙY CHỌN 2D & SIZE MẪU CARD -->
           <div style="margin-bottom:6px;padding:6px 7px;border:1px solid #283548;border-radius:6px;background:#1a2232;">
@@ -2287,6 +3733,10 @@ function getSavedGroundOffset() {
               <label style="display:flex;align-items:center;gap:4px;cursor:pointer;" title="Khóa Xoay 3 khung nhìn Side Views">
                 <input data-role="lock-side-rotation" type="checkbox" />
                 <span style="color:#c4b5fd;">Khóa Xoay 2D</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:4px;cursor:pointer;grid-column: span 2;" title="Bám tâm xe 3D và 2D khi chuyển frame: Xe luôn đứng yên giữa màn hình, triệt tiêu giật lắc mắt">
+                <input data-role="camera-auto-follow" type="checkbox" checked />
+                <span style="color:#6ee7b7;font-weight:600;">🎥 Bám tâm xe 3D/2D (Auto-Follow)</span>
               </label>
             </div>
             <div style="display:flex;align-items:center;gap:4px;border-top:1px solid #283548;padding-top:4px;">
@@ -2623,6 +4073,18 @@ function getSavedGroundOffset() {
       });
     }
 
+    const cameraFollowCb = panel.querySelector('[data-role="camera-auto-follow"]');
+    if (cameraFollowCb) {
+      const savedFollow = localStorage.getItem("auto-lwh-camera-follow");
+      cameraFollowCb.checked = savedFollow !== "false";
+      cameraFollowCb.addEventListener("change", () => {
+        localStorage.setItem(
+          "auto-lwh-camera-follow",
+          cameraFollowCb.checked ? "true" : "false",
+        );
+      });
+    }
+
     const enableCrosshairCb = panel.querySelector(
       '[data-role="enable-crosshair-pin"]',
     );
@@ -2638,6 +4100,43 @@ function getSavedGroundOffset() {
       enableGhostCb.checked = isGhostBoxEnabled();
       enableGhostCb.addEventListener("change", () => {
         setGhostBoxEnabled(enableGhostCb.checked);
+      });
+    }
+
+    const aimFaceSelect = panel.querySelector('[data-role="aim-face-offset"]');
+    if (aimFaceSelect) {
+      aimFaceSelect.value = String(aimTargetState.faceOffset);
+      aimFaceSelect.addEventListener("change", () => {
+        aimTargetState.faceOffset = parseFloat(aimFaceSelect.value) || 0;
+        saveAimTargetState();
+        const curObj = getSelectedObject();
+        if (curObj && (aimTargetState.point || aimTargetState.mode === "ego")) {
+          applyAimAtTarget(curObj);
+        }
+        updateAimTargetUI();
+      });
+    }
+
+    const aimAutoCb = panel.querySelector('[data-role="aim-auto-frame-change"]');
+    if (aimAutoCb) {
+      aimAutoCb.checked = Boolean(aimTargetState.autoOnFrameChange);
+      aimAutoCb.addEventListener("change", () => {
+        aimTargetState.autoOnFrameChange = aimAutoCb.checked;
+        saveAimTargetState();
+      });
+    }
+
+    const aimWorldAnchorCb = panel.querySelector('[data-role="aim-world-anchor"]');
+    if (aimWorldAnchorCb) {
+      aimWorldAnchorCb.checked = Boolean(aimTargetState.worldAnchor);
+      aimWorldAnchorCb.addEventListener("change", () => {
+        aimTargetState.worldAnchor = aimWorldAnchorCb.checked;
+        saveAimTargetState();
+        const curObj = getSelectedObject();
+        if (curObj && aimTargetState.active) {
+          applyAimAtTarget(curObj);
+        }
+        updateAimTargetUI();
       });
     }
 
@@ -3099,6 +4598,100 @@ function getSavedGroundOffset() {
         batchSyncConeB();
       }
       if (
+        role === "smooth-track-btn" ||
+        target.closest('[data-role="smooth-track-btn"]')
+      ) {
+        smoothTrackTrajectory();
+      }
+      if (
+        role === "pick-aim-point-btn" ||
+        target.closest('[data-role="pick-aim-point-btn"]')
+      ) {
+        if (isPickingAimPoint) {
+          stopAimPickingMode();
+        } else {
+          startAimPickingMode();
+        }
+      }
+      if (
+        role === "aim-pick-selected-btn" ||
+        target.closest('[data-role="aim-pick-selected-btn"]')
+      ) {
+        const curObj = getSelectedObject();
+        if (!curObj || !curObj.position) {
+          alert("Vui lòng click chọn 1 đối tượng/box để làm đích ngắm!");
+        } else {
+          const trackName =
+            curObj.userData?.trackName ||
+            curObj.userData?.trackId ||
+            "1";
+          aimTargetState.active = true;
+          aimTargetState.mode = "track";
+          aimTargetState.targetTrackId = String(trackName);
+          aimTargetState.point = {
+            x: Number(curObj.position.x.toFixed(3)),
+            y: Number(curObj.position.y.toFixed(3)),
+            z: Number(curObj.position.z.toFixed(3)),
+          };
+          saveAimTargetState();
+          updateAimTargetUI();
+        }
+      }
+      if (
+        role === "aim-to-ego-btn" ||
+        target.closest('[data-role="aim-to-ego-btn"]')
+      ) {
+        aimTargetState.active = true;
+        aimTargetState.mode = "ego";
+        aimTargetState.point = { x: 0, y: 0, z: 0 };
+        aimTargetState.targetTrackId = "";
+        saveAimTargetState();
+        const curObj = getSelectedObject();
+        if (curObj) {
+          applyAimAtTarget(curObj);
+        } else {
+          updateAimTargetUI();
+        }
+      }
+      if (
+        role === "aim-clear-btn" ||
+        target.closest('[data-role="aim-clear-btn"]')
+      ) {
+        aimTargetState.active = false;
+        aimTargetState.point = null;
+        aimTargetState.mode = "point";
+        aimTargetState.targetTrackId = "";
+        aimTargetState.anchorBasePoint = null;
+        aimTargetState.anchorFrame = null;
+        aimTargetState.anchorTrackName = "";
+        aimTargetState.framePoints = {};
+        saveAimTargetState();
+        updateAimTargetUI();
+      }
+      if (
+        role === "aim-cycle-face-btn" ||
+        target.closest('[data-role="aim-cycle-face-btn"]')
+      ) {
+        cycleAimFaceOffset();
+      }
+      if (
+        role === "apply-aim-now-btn" ||
+        target.closest('[data-role="apply-aim-now-btn"]')
+      ) {
+        const curObj = getSelectedObject();
+        if (curObj) {
+          applyAimAtTarget(curObj);
+        } else {
+          alert("Vui lòng chọn 1 box cần xoay Yaw!");
+        }
+      }
+      if (
+        role === "batch-aim-sequence-btn" ||
+        target.closest('[data-role="batch-aim-sequence-btn"]')
+      ) {
+        batchAimSequence();
+      }
+      if (
         role === "ref-pick-id-btn" ||
         target.closest('[data-role="ref-pick-id-btn"]')
       ) {
@@ -3284,6 +4877,41 @@ function getSavedGroundOffset() {
     );
   }
 
+  function updateNativeInfoYaw() {
+    const infoWrap = document.querySelector(".main-view-info");
+    if (!infoWrap) return;
+
+    let yawItem = infoWrap.querySelector('[data-role="native-yaw-info"]');
+    const obj = getSelectedObject();
+
+    if (!obj || !obj.rotation) {
+      if (yawItem) yawItem.style.display = "none";
+      return;
+    }
+
+    const rz = Number(obj.rotation.z);
+    const yawDeg = Number.isFinite(rz) ? rz * (180 / Math.PI) : 0;
+    const yawDegStr = Number.isFinite(yawDeg) ? yawDeg.toFixed(2) : "0.00";
+    const yawRadStr = Number.isFinite(rz) ? rz.toFixed(3) : "0.000";
+
+    if (!yawItem) {
+      yawItem = document.createElement("div");
+      yawItem.className = "item";
+      yawItem.dataset.role = "native-yaw-info";
+      yawItem.style.color = "#c4b5fd";
+      yawItem.style.fontWeight = "600";
+      const items = infoWrap.querySelectorAll(".item");
+      if (items.length > 0) {
+        items[items.length - 1].after(yawItem);
+      } else {
+        infoWrap.prepend(yawItem);
+      }
+    }
+
+    yawItem.style.display = "block";
+    yawItem.innerHTML = `<span class="title" style="color:#a78bfa;">Yaw：</span>${yawDegStr}° <span style="font-size:11px;opacity:0.8;font-weight:normal;color:#94a3b8;">(${yawRadStr} rad)</span>`;
+  }
+
   function updatePositionPanel() {
     const panel = document.getElementById(POSITION_PANEL_ID);
     if (!panel) return;
@@ -3337,6 +4965,8 @@ function getSavedGroundOffset() {
         if (hInput) hInput.value = "0";
         if (yawInput) yawInput.value = "0";
       }
+      updateAimTargetUI();
+      updateNativeInfoYaw();
       return;
     }
 
@@ -3492,7 +5122,7 @@ function getSavedGroundOffset() {
         const dXStr = Number.isFinite(rel.deltaX) ? `${rel.deltaX >= 0 ? '+' : ''}${rel.deltaX.toFixed(2)}m` : "--";
         const dYStr = Number.isFinite(rel.deltaY) ? `${rel.deltaY >= 0 ? '+' : ''}${rel.deltaY.toFixed(2)}m` : "--";
         const dZStr = Number.isFinite(rel.deltaZ) ? `${rel.deltaZ >= 0 ? '+' : ''}${rel.deltaZ.toFixed(2)}m` : "--";
-        benchmarkBanner.innerHTML = `⭐ <b>Chuẩn F${rel.benchmarkFrame || "?"}:</b> #${rel.refTrackName} ➜ #${rel.targetTrackName} | Cự ly: <b>${rel.dist2D?.toFixed(2) || "?"}m</b> (Hở: ${rel.gap?.toFixed(2) || "0.00"}m)<br/><span style="color:#cbd5e1;font-size:8.5px;">ΔX: ${dXStr} | ΔY: ${dYStr} | ΔZ: ${dZStr}</span><br/><span style="color:#6ee7b7;font-size:8.5px;font-weight:600;">✓ Sang frame mới: bấm <b>Alt+B</b> hoặc chuyển frame để tự sinh Cone B</span>`;
+        benchmarkBanner.innerHTML = `⭐ <b>Chuẩn F${rel.benchmarkFrame || "?"}:</b> #${rel.refTrackName} ➜ #${rel.targetTrackName} | Cự ly: <b>${rel.dist2D?.toFixed(2) || "?"}m</b> (Hở: ${rel.gap?.toFixed(2) || "0.00"}m)<br/><span style="color:#cbd5e1;font-size:8.5px;">ΔX: ${dXStr} | ΔY: ${dYStr} | ΔZ: ${dZStr}</span><br/><span style="color:#6ee7b7;font-size:8.5px;font-weight:600;">✓ Sang frame mới: Bấm <b>Alt+B</b> để dời Vật B</span><br/><span style="color:#93c5fd;font-size:8.5px;font-weight:600;">🎯 Yaw: Giữ nguyên 100% góc của B (P/án 3: Tự do nắn Yaw cho B)</span>`;
       } else {
         benchmarkBanner.style.display = "none";
       }
@@ -3526,6 +5156,8 @@ function getSavedGroundOffset() {
     if (toInput && document.activeElement !== toInput && !toInput.value && totalF) {
       toInput.value = String(totalF);
     }
+    updateAimTargetUI();
+    updateNativeInfoYaw();
   }
 
   function applySelectedPosition() {
@@ -4346,6 +5978,7 @@ function getSavedGroundOffset() {
   }
 
   function init() {
+    loadAimTargetState();
     ensurePositionPanel();
     setupSideViewZoomLock();
     updatePositionPanel();
@@ -4425,6 +6058,27 @@ function getSavedGroundOffset() {
           e.preventDefault();
           e.stopPropagation();
           toggleGhostBox();
+        }
+        if (e.altKey && (e.key === "t" || e.key === "T")) {
+          e.preventDefault();
+          e.stopPropagation();
+          smoothTrackTrajectory();
+        }
+        if (e.altKey && (e.key === "a" || e.key === "A")) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.shiftKey) {
+            cycleAimFaceOffset();
+          } else if (isPickingAimPoint) {
+            stopAimPickingMode();
+          } else {
+            const curObj = getSelectedObject();
+            if (!aimTargetState.point && aimTargetState.mode !== "ego") {
+              startAimPickingMode();
+            } else if (curObj) {
+              applyAimAtTarget(curObj);
+            }
+          }
         }
 
         // Phím tắt Numpad điều chỉnh Position (bước nhảy 0.01m, Yaw 0.5°)
@@ -4519,9 +6173,11 @@ function getSavedGroundOffset() {
       window.editor || window.__APP__?.editor || window.app?.editor;
     const handleFrameSwitch = () => {
       if (isBatchSyncRunning) return;
+      applyCameraAutoFollow();
       recordCurrentObjectState();
       refreshGhostBox();
       refreshSelection();
+      setTimeout(applyCameraAutoFollow, 80);
       // Tuyệt đối không âm thầm tự động căn chỉnh: Chỉ chạy khi người dùng trực tiếp tích chọn checkbox trên giao diện
       const autoSpawn =
         Boolean(document.getElementById(POSITION_PANEL_ID)?.querySelector('[data-role="auto-spawn-cone"]')?.checked);
@@ -4536,6 +6192,37 @@ function getSavedGroundOffset() {
             }, 250);
           }
         }, 120);
+      }
+
+      if (aimTargetState.active) {
+        const tryApplyAim = () => {
+          const all = getAll3DObjects();
+          let curObj = null;
+          const qTrack = String(aimTargetState.anchorTrackName || "").trim().toLowerCase().replace(/^#/, "");
+          if (qTrack && all.length > 0) {
+            curObj = all.find((o) => {
+              const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
+              const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
+              return tn === qTrack || tid === qTrack;
+            });
+          }
+          if (!curObj || !curObj.position) {
+            curObj = getSelectedObject();
+          }
+          if ((!curObj || !curObj.position) && all.length > 0) {
+            curObj = all[0];
+          }
+
+          if (aimTargetState.autoOnFrameChange && curObj && curObj.position) {
+            applyAimAtTarget(curObj);
+          } else {
+            updateAimTargetUI();
+          }
+        };
+
+        setTimeout(tryApplyAim, 90);
+        setTimeout(tryApplyAim, 240);
+        setTimeout(tryApplyAim, 450);
       }
     };
     editor?.addEventListener?.("frameChange", handleFrameSwitch);
@@ -4559,6 +6246,8 @@ function getSavedGroundOffset() {
     pc?.addEventListener?.("dragend", refreshSelection);
     pc?.addEventListener?.("pointerup", refreshSelection);
     pc?.addEventListener?.("mouseup", refreshSelection);
+
+    window.addEventListener("pointerdown", handleAimPickPointerDown, true);
 
     let lastDetectedFrameIndex = null;
     const syncTimer = setInterval(() => {
@@ -4620,7 +6309,7 @@ function getSavedGroundOffset() {
     window.__AUTO_LWH_SYNC_TIMER__ = syncTimer;
 
     setTimeout(() => {
-      setLwh();
+      // Đã tắt tự động setLwh() khi khởi động để tuyệt đối không làm biến đổi kích thước box ngoài ý muốn của người dùng.
       updatePositionPanel();
     }, 1200);
   }
