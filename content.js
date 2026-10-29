@@ -64,21 +64,36 @@
     // Trong Three.js, Euler.copy() bắt buộc đọc _x, _y, _z, _order.
     // Nếu _x, _y, hoặc _z bị undefined hoặc NaN thì ma trận chuyển vị sẽ hỏng -> box bị biến mất hoàn toàn!
     if (payload.rotation) {
-      const curRx = Number.isFinite(Number(obj.rotation?.x)) ? Number(obj.rotation.x) : 0;
-      const curRy = Number.isFinite(Number(obj.rotation?.y)) ? Number(obj.rotation.y) : 0;
-      const curRz = Number.isFinite(Number(obj.rotation?.z)) ? Number(obj.rotation.z) : 0;
+      const curRx = Number.isFinite(Number(obj.rotation?.x))
+        ? Number(obj.rotation.x)
+        : 0;
+      const curRy = Number.isFinite(Number(obj.rotation?.y))
+        ? Number(obj.rotation.y)
+        : 0;
+      const curRz = Number.isFinite(Number(obj.rotation?.z))
+        ? Number(obj.rotation.z)
+        : 0;
 
-      if (payload.rotation._x === undefined || typeof payload.rotation.set !== "function") {
+      if (
+        payload.rotation._x === undefined ||
+        typeof payload.rotation.set !== "function"
+      ) {
         if (obj.rotation && typeof obj.rotation.clone === "function") {
           const euler = obj.rotation.clone();
-          const rx = Number.isFinite(Number(payload.rotation.x)) ? Number(payload.rotation.x) : curRx;
-          const ry = Number.isFinite(Number(payload.rotation.y)) ? Number(payload.rotation.y) : curRy;
-          const rz = Number.isFinite(Number(payload.rotation.z)) ? Number(payload.rotation.z) : curRz;
+          const rx = Number.isFinite(Number(payload.rotation.x))
+            ? Number(payload.rotation.x)
+            : curRx;
+          const ry = Number.isFinite(Number(payload.rotation.y))
+            ? Number(payload.rotation.y)
+            : curRy;
+          const rz = Number.isFinite(Number(payload.rotation.z))
+            ? Number(payload.rotation.z)
+            : curRz;
           euler.set(
             rx,
             ry,
             rz,
-            payload.rotation.order || obj.rotation.order || "XYZ"
+            payload.rotation.order || obj.rotation.order || "XYZ",
           );
           payload.rotation = euler;
         }
@@ -90,21 +105,45 @@
     }
 
     if (payload.position) {
-      const curPx = Number.isFinite(Number(obj.position?.x)) ? Number(obj.position.x) : 0;
-      const curPy = Number.isFinite(Number(obj.position?.y)) ? Number(obj.position.y) : 0;
-      const curPz = Number.isFinite(Number(obj.position?.z)) ? Number(obj.position.z) : 0;
-      payload.position.x = Number.isFinite(Number(payload.position.x)) ? Number(payload.position.x) : curPx;
-      payload.position.y = Number.isFinite(Number(payload.position.y)) ? Number(payload.position.y) : curPy;
-      payload.position.z = Number.isFinite(Number(payload.position.z)) ? Number(payload.position.z) : curPz;
+      const curPx = Number.isFinite(Number(obj.position?.x))
+        ? Number(obj.position.x)
+        : 0;
+      const curPy = Number.isFinite(Number(obj.position?.y))
+        ? Number(obj.position.y)
+        : 0;
+      const curPz = Number.isFinite(Number(obj.position?.z))
+        ? Number(obj.position.z)
+        : 0;
+      payload.position.x = Number.isFinite(Number(payload.position.x))
+        ? Number(payload.position.x)
+        : curPx;
+      payload.position.y = Number.isFinite(Number(payload.position.y))
+        ? Number(payload.position.y)
+        : curPy;
+      payload.position.z = Number.isFinite(Number(payload.position.z))
+        ? Number(payload.position.z)
+        : curPz;
     }
 
     if (payload.scale) {
-      const curSx = Number.isFinite(Number(obj.scale?.x)) ? Number(obj.scale.x) : 1;
-      const curSy = Number.isFinite(Number(obj.scale?.y)) ? Number(obj.scale.y) : 1;
-      const curSz = Number.isFinite(Number(obj.scale?.z)) ? Number(obj.scale.z) : 1;
-      payload.scale.x = Number.isFinite(Number(payload.scale.x)) ? Number(payload.scale.x) : curSx;
-      payload.scale.y = Number.isFinite(Number(payload.scale.y)) ? Number(payload.scale.y) : curSy;
-      payload.scale.z = Number.isFinite(Number(payload.scale.z)) ? Number(payload.scale.z) : curSz;
+      const curSx = Number.isFinite(Number(obj.scale?.x))
+        ? Number(obj.scale.x)
+        : 1;
+      const curSy = Number.isFinite(Number(obj.scale?.y))
+        ? Number(obj.scale.y)
+        : 1;
+      const curSz = Number.isFinite(Number(obj.scale?.z))
+        ? Number(obj.scale.z)
+        : 1;
+      payload.scale.x = Number.isFinite(Number(payload.scale.x))
+        ? Number(payload.scale.x)
+        : curSx;
+      payload.scale.y = Number.isFinite(Number(payload.scale.y))
+        ? Number(payload.scale.y)
+        : curSy;
+      payload.scale.z = Number.isFinite(Number(payload.scale.z))
+        ? Number(payload.scale.z)
+        : curSz;
     }
 
     if (
@@ -135,7 +174,11 @@
     } else {
       if (obj.position && payload && payload.position) {
         if (typeof obj.position.set === "function") {
-          obj.position.set(payload.position.x, payload.position.y, payload.position.z);
+          obj.position.set(
+            payload.position.x,
+            payload.position.y,
+            payload.position.z,
+          );
         } else if (typeof obj.position.copy === "function") {
           obj.position.copy(payload.position);
         }
@@ -153,7 +196,7 @@
             Number(payload.rotation.x) || 0,
             Number(payload.rotation.y) || 0,
             Number(payload.rotation.z) || 0,
-            payload.rotation.order || "XYZ"
+            payload.rotation.order || "XYZ",
           );
         } else if (typeof obj.rotation.copy === "function") {
           obj.rotation.copy(payload.rotation);
@@ -337,7 +380,7 @@
   // HẠ SÁT MẶT ĐƯỜNG (GROUND ALIGNMENT)
   // ==========================================
 
-    function isObjectBottomPivot(obj) {
+  function isObjectBottomPivot(obj) {
     if (!obj) return false;
 
     // 1. Lựa chọn thủ công của người dùng trên bảng điều khiển
@@ -358,7 +401,11 @@
         } catch (e) {}
       }
       const bbox = obj.geometry.boundingBox;
-      if (bbox && typeof bbox.min?.z === "number" && typeof bbox.max?.z === "number") {
+      if (
+        bbox &&
+        typeof bbox.min?.z === "number" &&
+        typeof bbox.max?.z === "number"
+      ) {
         // Nếu min.z >= -0.15 và max.z > 0.4: Tọa độ gốc z nằm ở đáy (Bottom-Center)
         if (bbox.min.z >= -0.15 && bbox.max.z > 0.4) {
           return true;
@@ -418,7 +465,7 @@
     return false;
   }
 
-function getSavedGroundOffset() {
+  function getSavedGroundOffset() {
     const val = localStorage.getItem("auto-lwh-ground-offset");
     const num = parseFloat(val);
     return Number.isFinite(num) ? num : 0;
@@ -689,14 +736,14 @@ function getSavedGroundOffset() {
         if (isMin) {
           // Tìm mép âm nhất (Đuôi xe ở -X, hoặc Sườn phải ở -Y)
           // Nếu điểm ngoài cùng s[0] cách điểm kế tiếp s[1] > 20cm -> là hạt bụi bay lạc, bỏ s[0]
-          if (sorted[1] - sorted[0] > 0.20) {
+          if (sorted[1] - sorted[0] > 0.2) {
             return sorted[1];
           }
           // Trung bình 2 điểm ngoài cùng để ôm phẳng lì theo bề mặt kim loại xe
           return (sorted[0] + sorted[1]) / 2;
         } else {
           // Tìm mép dương nhất (Đầu xe ở +X, hoặc Sườn trái ở +Y)
-          if (sorted[n - 1] - sorted[n - 2] > 0.20) {
+          if (sorted[n - 1] - sorted[n - 2] > 0.2) {
             return sorted[n - 2];
           }
           return (sorted[n - 1] + sorted[n - 2]) / 2;
@@ -704,7 +751,7 @@ function getSavedGroundOffset() {
       }
 
       // 2. Tách điểm sườn (Side) và điểm đuôi/đầu (Bumper)
-      const marginX = isSparse ? halfL - 0.10 : halfL - 0.15;
+      const marginX = isSparse ? halfL - 0.1 : halfL - 0.15;
       const leftSide = cand.filter(
         (p) => p.ly > 0.15 && Math.abs(p.lx) < marginX,
       );
@@ -729,21 +776,33 @@ function getSavedGroundOffset() {
       let deltaY = 0;
       if (dominantSide === "dual") {
         // Có điểm ở cả 2 sườn: Căn giữa 2 bên để khoảng cách 2 bên cân đối nhất
-        const leftEdge = getOuterEdge(leftSide.map((p) => p.ly), false);
-        const rightEdge = getOuterEdge(rightSide.map((p) => p.ly), true);
+        const leftEdge = getOuterEdge(
+          leftSide.map((p) => p.ly),
+          false,
+        );
+        const rightEdge = getOuterEdge(
+          rightSide.map((p) => p.ly),
+          true,
+        );
         deltaY = (leftEdge + rightEdge) / 2;
       } else if (dominantSide === "left") {
         // Chỉ nhìn thấy sườn trái (dạng chữ L góc nhìn chéo)
-        const leftEdge = getOuterEdge(leftSide.map((p) => p.ly), false);
+        const leftEdge = getOuterEdge(
+          leftSide.map((p) => p.ly),
+          false,
+        );
         deltaY = leftEdge - halfW;
       } else if (dominantSide === "right") {
         // Chỉ nhìn thấy sườn phải
-        const rightEdge = getOuterEdge(rightSide.map((p) => p.ly), true);
+        const rightEdge = getOuterEdge(
+          rightSide.map((p) => p.ly),
+          true,
+        );
         deltaY = rightEdge - -halfW;
       }
 
       // 4. Căn mép đuôi / đầu (Longitudinal shift: deltaX)
-      const rearMarginY = isSparse ? halfW - 0.05 : halfW - 0.10;
+      const rearMarginY = isSparse ? halfW - 0.05 : halfW - 0.1;
       const rearPts = cand.filter(
         (p) => p.lx < -0.15 && Math.abs(p.ly) < rearMarginY,
       );
@@ -754,22 +813,34 @@ function getSavedGroundOffset() {
       let deltaX = 0;
       if (rearPts.length >= 3 && frontPts.length >= 3) {
         // Nhìn thấy cả đầu và đuôi
-        const rEdge = getOuterEdge(rearPts.map((p) => p.lx), true);
-        const fEdge = getOuterEdge(frontPts.map((p) => p.lx), false);
+        const rEdge = getOuterEdge(
+          rearPts.map((p) => p.lx),
+          true,
+        );
+        const fEdge = getOuterEdge(
+          frontPts.map((p) => p.lx),
+          false,
+        );
         deltaX = (rEdge + fEdge) / 2;
       } else if (rearPts.length >= 1) {
         // Chủ yếu nhìn thấy đuôi xe (góc nhìn từ sau tới)
-        const rEdge = getOuterEdge(rearPts.map((p) => p.lx), true);
+        const rEdge = getOuterEdge(
+          rearPts.map((p) => p.lx),
+          true,
+        );
         deltaX = rEdge - -halfL;
       } else if (frontPts.length >= 1) {
         // Chủ yếu nhìn thấy đầu xe
-        const fEdge = getOuterEdge(frontPts.map((p) => p.lx), false);
+        const fEdge = getOuterEdge(
+          frontPts.map((p) => p.lx),
+          false,
+        );
         deltaX = fEdge - halfL;
       }
 
       // Giới hạn dịch chuyển tối đa thích ứng:
       // Khi ít điểm (xe ở xa), siết chặt biên độ tối đa (40cm/35cm) để dù có 1 điểm bay lạc cũng không giật box đi xa
-      const maxShiftX = isSparse ? 0.40 : 0.85;
+      const maxShiftX = isSparse ? 0.4 : 0.85;
       const maxShiftY = isSparse ? 0.35 : 0.65;
 
       deltaX = Math.max(-maxShiftX, Math.min(maxShiftX, deltaX));
@@ -816,8 +887,8 @@ function getSavedGroundOffset() {
           dominantSide === "dual"
             ? `Cân đối 2 sườn: ${(deltaY * 100).toFixed(1)}cm`
             : dominantSide
-            ? `Sườn ${dominantSide === "left" ? "Trái" : "Phải"}: ${(deltaY * 100).toFixed(1)}cm`
-            : "Không có điểm sườn";
+              ? `Sườn ${dominantSide === "left" ? "Trái" : "Phải"}: ${(deltaY * 100).toFixed(1)}cm`
+              : "Không có điểm sườn";
         const rearDetail = `Đuôi: ${(deltaX * 100).toFixed(1)}cm`;
         badge.title = `Chế độ: ${isSparse ? "Sparse (Ít điểm)" : "Dense (Dày điểm)"} (${cand.length} điểm). ${sideDetail}, ${rearDetail}. Giữ nguyên góc xoay.`;
       }
@@ -1047,7 +1118,8 @@ function getSavedGroundOffset() {
     ) {
       return pc.annotate3D.children;
     }
-    const editor = window.editor || window.__APP__?.editor || window.app?.editor;
+    const editor =
+      window.editor || window.__APP__?.editor || window.app?.editor;
     if (
       editor &&
       editor.dataManager &&
@@ -1099,7 +1171,8 @@ function getSavedGroundOffset() {
 
     // 4. Tìm kiếm chứa chuỗi trong tên track
     found = objs.find((o) => {
-      const str = `${o?.userData?.trackName || ""} ${o?.userData?.trackId || ""}`.toLowerCase();
+      const str =
+        `${o?.userData?.trackName || ""} ${o?.userData?.trackId || ""}`.toLowerCase();
       return str.includes(q);
     });
     return found || null;
@@ -1122,12 +1195,12 @@ function getSavedGroundOffset() {
     if (saved !== null && Number.isFinite(parseFloat(saved))) {
       return parseFloat(saved);
     }
-    return 0.00;
+    return 0.0;
   }
 
   function setSavedRefGap(mode, val) {
     const key = getRefGapKey(mode);
-    const num = Number.isFinite(parseFloat(val)) ? parseFloat(val) : 0.00;
+    const num = Number.isFinite(parseFloat(val)) ? parseFloat(val) : 0.0;
     localStorage.setItem(key, String(num));
     return num;
   }
@@ -1138,75 +1211,6 @@ function getSavedGroundOffset() {
 
   function setSavedRefMode(mode) {
     localStorage.setItem("auto-lwh-ref-mode", mode || "top");
-  }
-
-  // HÀM HÚT ĐIỂM LIDAR TRÊN CUNG TRÒN BÁN KÍNH R QUANH MỐC A (XỬ LÝ ĐƯỜNG CONG / XE ÔM CUA)
-  function findArcSnapPoint(centerA, targetRadius, nominalAngle, targetZ, targetObj) {
-    if (!centerA || !Number.isFinite(targetRadius) || targetRadius <= 0.05) return null;
-    const pc = getPagePc();
-    const groupPoints = pc?.groupPoints?.children?.[0];
-    const posAttr = groupPoints?.geometry?.getAttribute("position");
-    if (!posAttr || !posAttr.array || posAttr.count === 0) return null;
-
-    const arr = posAttr.array;
-    const count = posAttr.count;
-
-    // Chiều cao hộp mục tiêu để lọc đúng lát cắt Z (không bị nhiễu mặt đường hay trên trời)
-    const halfH = Math.max(0.2, (targetObj?.scale?.z || 0.6) / 2);
-    const minZ = targetZ - halfH - 0.15;
-    const maxZ = targetZ + halfH + 0.15;
-
-    // Vành đai bán kính [R - 0.45m, R + 0.45m] quanh Mốc A
-    const minR = Math.max(0.05, targetRadius - 0.45);
-    const maxR = targetRadius + 0.45;
-    const maxAngleDiff = 25 * (Math.PI / 180); // Cửa sổ góc ±25° quanh góc danh định
-
-    const sectorPoints = [];
-    const step = count > 120000 ? 2 : 1;
-
-    for (let i = 0; i < count; i += step) {
-      const idx = i * 3;
-      const px = arr[idx];
-      const py = arr[idx + 1];
-      const pz = arr[idx + 2];
-
-      // Lọc cao độ Z
-      if (pz < minZ || pz > maxZ) continue;
-
-      const dX = px - centerA.x;
-      const dY = py - centerA.y;
-      const distFromA = Math.hypot(dX, dY);
-
-      if (distFromA < minR || distFromA > maxR) continue;
-
-      const angle = Math.atan2(dY, dX);
-      let angleDiff = angle - nominalAngle;
-      while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-      while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-
-      if (Math.abs(angleDiff) <= maxAngleDiff) {
-        sectorPoints.push({ px, py, pz, distFromA, angle });
-      }
-    }
-
-    if (sectorPoints.length < 2) {
-      return null;
-    }
-
-    // Sắp xếp theo góc để lấy trung vị (median angle), loại bỏ nhiễu bay lạc
-    sectorPoints.sort((a, b) => a.angle - b.angle);
-    const medianAngle = sectorPoints[Math.floor(sectorPoints.length * 0.5)].angle;
-
-    // Tọa độ trên cung tròn với bán kính R chuẩn xác 100%
-    const snapX = Number((centerA.x + targetRadius * Math.cos(medianAngle)).toFixed(3));
-    const snapY = Number((centerA.y + targetRadius * Math.sin(medianAngle)).toFixed(3));
-
-    return {
-      x: snapX,
-      y: snapY,
-      snappedAngle: medianAngle,
-      pointsCount: sectorPoints.length,
-    };
   }
 
   function applyRefZ(targetObj) {
@@ -1247,7 +1251,10 @@ function getSavedGroundOffset() {
     }
 
     // Không tự tham chiếu chính nó
-    if (refObj === obj || (obj.uuid && refObj.uuid && obj.uuid === refObj.uuid)) {
+    if (
+      refObj === obj ||
+      (obj.uuid && refObj.uuid && obj.uuid === refObj.uuid)
+    ) {
       if (badge) {
         badge.textContent = "Trùng box đang chọn";
         badge.style.background = "#713f12";
@@ -1257,9 +1264,10 @@ function getSavedGroundOffset() {
     }
 
     const mode = modeSelect?.value || getSavedRefMode() || "top";
-    const gapVal = gapInput && Number.isFinite(parseFloat(gapInput.value))
-      ? parseFloat(gapInput.value)
-      : getSavedRefGap(mode);
+    const gapVal =
+      gapInput && Number.isFinite(parseFloat(gapInput.value))
+        ? parseFloat(gapInput.value)
+        : getSavedRefGap(mode);
 
     const refX = Number(refObj.position.x) || 0;
     const refY = Number(refObj.position.y) || 0;
@@ -1277,7 +1285,10 @@ function getSavedGroundOffset() {
     const distL = (refL + targetL) / 2 + gapVal;
     const distW = (refW + targetW) / 2 + gapVal;
 
-    const refYaw = (refObj.rotation && Number.isFinite(refObj.rotation.z)) ? refObj.rotation.z : 0;
+    const refYaw =
+      refObj.rotation && Number.isFinite(refObj.rotation.z)
+        ? refObj.rotation.z
+        : 0;
     const cosB = Math.cos(refYaw);
     const sinB = Math.sin(refYaw);
 
@@ -1286,40 +1297,29 @@ function getSavedGroundOffset() {
     let newZ = refZ;
     let badgeText = "";
 
-    const gapSign = gapVal >= 0 ? `+${gapVal.toFixed(2)}` : `${gapVal.toFixed(2)}`;
+    const gapSign =
+      gapVal >= 0 ? `+${gapVal.toFixed(2)}` : `${gapVal.toFixed(2)}`;
 
     if (mode === "offset") {
-      // 🎯 Giữ cự ly / vector khoảng cách chuẩn (Đường cong & Hút LiDAR trên cung tròn)
+      // 🎯 Giữ cự ly / vector khoảng cách chuẩn
       const rel = getSavedConeRelation();
       if (rel && (Number.isFinite(rel.deltaX) || Number.isFinite(rel.deltaY))) {
-        const nominalAngle0 = Number.isFinite(rel.nominalAngle)
-          ? rel.nominalAngle
-          : Math.atan2(rel.deltaY || 0, rel.deltaX || 0);
-        const dYaw = refYaw - (rel.refYaw || 0);
-        const thetaNom = nominalAngle0 + dYaw;
-        const R = rel.dist2D || Math.hypot(rel.deltaX || 0, rel.deltaY || 0);
-
-        let arcSnap = null;
-        try {
-          arcSnap = findArcSnapPoint(
-            { x: refX, y: refY },
-            R,
-            thetaNom,
-            refZ + (rel.deltaZ || 0),
-            obj
-          );
-        } catch (_) {}
-
-        if (arcSnap) {
-          newX = arcSnap.x;
-          newY = arcSnap.y;
-          badgeText = `🟢 Hút Arc R (#${refId}: ${arcSnap.pointsCount}pts)`;
+        if (
+          Number.isFinite(rel.localDx) &&
+          Number.isFinite(rel.localDy) &&
+          Number.isFinite(rel.refYaw)
+        ) {
+          const dYaw = refYaw - (rel.refYaw || 0);
+          const cosD = Math.cos(dYaw);
+          const sinD = Math.sin(dYaw);
+          newX = refX + (rel.deltaX * cosD - rel.deltaY * sinD);
+          newY = refY + (rel.deltaX * sinD + rel.deltaY * cosD);
         } else {
-          newX = refX + R * Math.cos(thetaNom);
-          newY = refY + R * Math.sin(thetaNom);
-          badgeText = `🟢 Khóa cự ly R (#${refId})`;
+          newX = refX + (rel.deltaX || 0);
+          newY = refY + (rel.deltaY || 0);
         }
         newZ = refZ + (rel.deltaZ || 0);
+        badgeText = `🟢 Giữ ΔX, ΔY (#${refId})`;
       } else {
         const dx = (obj.position?.x ?? refX) - refX;
         const dy = (obj.position?.y ?? refY) - refY;
@@ -1501,7 +1501,12 @@ function getSavedGroundOffset() {
 
     if (!curObj || !refId) return null;
     const refObj = findObjectByRefId(refId);
-    if (!refObj || refObj === curObj || (refObj.uuid && curObj.uuid && refObj.uuid === curObj.uuid)) return null;
+    if (
+      !refObj ||
+      refObj === curObj ||
+      (refObj.uuid && curObj.uuid && refObj.uuid === curObj.uuid)
+    )
+      return null;
 
     const dx = (curObj.position?.x || 0) - (refObj.position?.x || 0);
     const dy = (curObj.position?.y || 0) - (refObj.position?.y || 0);
@@ -1509,16 +1514,22 @@ function getSavedGroundOffset() {
     const dist2D = Math.hypot(dx, dy);
     const dist3D = Math.hypot(dx, dy, dz);
 
-    const radiusRef = Math.max(refObj.scale?.x || 0.41, refObj.scale?.y || 0.41) / 2;
-    const radiusTarget = Math.max(curObj.scale?.x || 0.41, curObj.scale?.y || 0.41) / 2;
+    const radiusRef =
+      Math.max(refObj.scale?.x || 0.41, refObj.scale?.y || 0.41) / 2;
+    const radiusTarget =
+      Math.max(curObj.scale?.x || 0.41, curObj.scale?.y || 0.41) / 2;
     const measuredEdgeGap = Math.max(0, dist2D - radiusRef - radiusTarget);
 
     const mode = modeSelect?.value || getSavedRefMode() || "offset";
-    const gapVal = gapInput && Number.isFinite(parseFloat(gapInput.value))
-      ? parseFloat(gapInput.value)
-      : (measuredEdgeGap || 0);
+    const gapVal =
+      gapInput && Number.isFinite(parseFloat(gapInput.value))
+        ? parseFloat(gapInput.value)
+        : measuredEdgeGap || 0;
 
-    const refYaw = (refObj.rotation && Number.isFinite(refObj.rotation.z)) ? refObj.rotation.z : 0;
+    const refYaw =
+      refObj.rotation && Number.isFinite(refObj.rotation.z)
+        ? refObj.rotation.z
+        : 0;
     const cosRef = Math.cos(-refYaw);
     const sinRef = Math.sin(-refYaw);
     const localDx = cosRef * dx - sinRef * dy;
@@ -1532,7 +1543,9 @@ function getSavedGroundOffset() {
       refTrackName: String(refObj.userData?.trackName || refId),
       refTrackId: String(refObj.userData?.trackId || ""),
       refYaw: refYaw,
-      targetTrackName: String(curObj.userData?.trackName || curObj.userData?.trackId || "B"),
+      targetTrackName: String(
+        curObj.userData?.trackName || curObj.userData?.trackId || "B",
+      ),
       targetTrackId: String(curObj.userData?.trackId || ""),
       classType: curObj.userData?.classType || "traffic_cone",
       classId: curObj.userData?.classId || "",
@@ -1558,11 +1571,13 @@ function getSavedGroundOffset() {
       dist3D: Number(dist3D.toFixed(3)),
       unitX: dist2D > 1e-4 ? dx / dist2D : 1,
       unitY: dist2D > 1e-4 ? dy / dist2D : 0,
-      nominalAngle: Number(Math.atan2(dy, dx).toFixed(4)),
       yawMode: "keep_target_yaw",
     };
 
-    localStorage.setItem("auto-lwh-cone-relation", JSON.stringify(lastConeRelation));
+    localStorage.setItem(
+      "auto-lwh-cone-relation",
+      JSON.stringify(lastConeRelation),
+    );
     return lastConeRelation;
   }
 
@@ -1592,7 +1607,9 @@ function getSavedGroundOffset() {
         badge.style.background = "#7f1d1d";
         badge.style.color = "#fca5a5";
       }
-      alert("Vui lòng click chọn Vật B (Biển/Cột/Cỏ/Cone) trước khi chốt làm chuẩn!");
+      alert(
+        "Vui lòng click chọn Vật B (Biển/Cột/Cỏ/Cone) trước khi chốt làm chuẩn!",
+      );
       return false;
     }
 
@@ -1601,7 +1618,7 @@ function getSavedGroundOffset() {
 
     if (!refObj) {
       const allObjs = getAll3DObjects().filter(
-        (o) => o !== curObj && o.uuid !== curObj.uuid && o.position
+        (o) => o !== curObj && o.uuid !== curObj.uuid && o.position,
       );
       if (allObjs.length === 1) {
         refObj = allObjs[0];
@@ -1619,8 +1636,10 @@ function getSavedGroundOffset() {
     const dist2D = Math.hypot(dx, dy);
     const dist3D = Math.hypot(dx, dy, dz);
 
-    const radiusRef = Math.max(refObj.scale?.x || 0.41, refObj.scale?.y || 0.41) / 2;
-    const radiusTarget = Math.max(curObj.scale?.x || 0.41, curObj.scale?.y || 0.41) / 2;
+    const radiusRef =
+      Math.max(refObj.scale?.x || 0.41, refObj.scale?.y || 0.41) / 2;
+    const radiusTarget =
+      Math.max(curObj.scale?.x || 0.41, curObj.scale?.y || 0.41) / 2;
     const edgeGap = Math.max(0, dist2D - radiusRef - radiusTarget);
 
     if (gapInput) {
@@ -1635,13 +1654,17 @@ function getSavedGroundOffset() {
       } catch (_) {}
     }
 
-    const refYaw = (refObj.rotation && Number.isFinite(refObj.rotation.z)) ? refObj.rotation.z : 0;
+    const refYaw =
+      refObj.rotation && Number.isFinite(refObj.rotation.z)
+        ? refObj.rotation.z
+        : 0;
     const cosRef = Math.cos(-refYaw);
     const sinRef = Math.sin(-refYaw);
     const localDx = cosRef * dx - sinRef * dy;
     const localDy = sinRef * dx + cosRef * dy;
 
-    const targetTrackName = curObj.userData?.trackName || curObj.userData?.trackId || "B";
+    const targetTrackName =
+      curObj.userData?.trackName || curObj.userData?.trackId || "B";
     const refTrackName = refObj.userData?.trackName || refId;
 
     lastConeRelation = {
@@ -1675,12 +1698,14 @@ function getSavedGroundOffset() {
       dist3D: Number(dist3D.toFixed(3)),
       unitX: dist2D > 1e-4 ? dx / dist2D : 1,
       unitY: dist2D > 1e-4 ? dy / dist2D : 0,
-      nominalAngle: Number(Math.atan2(dy, dx).toFixed(4)),
       yawMode: "keep_target_yaw",
       timestamp: Date.now(),
     };
 
-    localStorage.setItem("auto-lwh-cone-relation", JSON.stringify(lastConeRelation));
+    localStorage.setItem(
+      "auto-lwh-cone-relation",
+      JSON.stringify(lastConeRelation),
+    );
 
     // Không tự động bật checkbox khi chốt chuẩn: Giá trị luôn là false trừ khi người dùng tự tay tích chọn
 
@@ -1690,21 +1715,28 @@ function getSavedGroundOffset() {
       badge.style.color = "#a7f3d0";
     }
 
-    const benchmarkBanner = panel?.querySelector('[data-role="ref-benchmark-status"]');
+    const benchmarkBanner = panel?.querySelector(
+      '[data-role="ref-benchmark-status"]',
+    );
     if (benchmarkBanner) {
       benchmarkBanner.style.display = "block";
-      const dXStr = `${dx >= 0 ? '+' : ''}${dx.toFixed(2)}m`;
-      const dYStr = `${dy >= 0 ? '+' : ''}${dy.toFixed(2)}m`;
-      const dZStr = `${dz >= 0 ? '+' : ''}${dz.toFixed(2)}m`;
+      const dXStr = `${dx >= 0 ? "+" : ""}${dx.toFixed(2)}m`;
+      const dYStr = `${dy >= 0 ? "+" : ""}${dy.toFixed(2)}m`;
+      const dZStr = `${dz >= 0 ? "+" : ""}${dz.toFixed(2)}m`;
       benchmarkBanner.innerHTML = `⭐ <b>Đã chốt chuẩn F${curFrameNum}:</b> #${refTrackName} ➜ #${targetTrackName} | Cự ly: <b>${dist2D.toFixed(2)}m</b> (Hở: ${edgeGap.toFixed(2)}m)<br/><span style="color:#cbd5e1;font-size:8.5px;">ΔX: ${dXStr} | ΔY: ${dYStr} | ΔZ: ${dZStr}</span><br/><span style="color:#6ee7b7;font-size:8.5px;font-weight:600;">✓ Sang frame mới: Bấm <b>Alt+B</b> để dời Vật B (hoặc tự tích 'Tự dời B khi qua Frame')</span><br/><span style="color:#93c5fd;font-size:8.5px;font-weight:600;">🎯 Yaw: Giữ nguyên 100% góc của B (P/án 3: Tự do nắn Yaw cho B)</span>`;
     }
 
     const fromInput = panel?.querySelector('[data-role="batch-from-frame"]');
     const toInput = panel?.querySelector('[data-role="batch-to-frame"]');
-    const editor = window.editor || window.__APP__?.editor || window.app?.editor;
-    const totalF = Array.isArray(editor?.state?.frames) ? editor.state.frames.length : null;
+    const editor =
+      window.editor || window.__APP__?.editor || window.app?.editor;
+    const totalF = Array.isArray(editor?.state?.frames)
+      ? editor.state.frames.length
+      : null;
     if (fromInput) {
-      fromInput.value = String(curFrameNum + 1 <= (totalF || 9999) ? curFrameNum + 1 : curFrameNum);
+      fromInput.value = String(
+        curFrameNum + 1 <= (totalF || 9999) ? curFrameNum + 1 : curFrameNum,
+      );
     }
     if (toInput && totalF) {
       toInput.value = String(totalF);
@@ -1715,7 +1747,8 @@ function getSavedGroundOffset() {
   }
 
   function spawnConeB(frameParam) {
-    const editor = window.editor || window.__APP__?.editor || window.app?.editor;
+    const editor =
+      window.editor || window.__APP__?.editor || window.app?.editor;
     const pc = getPagePc();
     const panel = document.getElementById(POSITION_PANEL_ID);
     const badge = panel?.querySelector('[data-role="ref-z-badge"]');
@@ -1730,26 +1763,48 @@ function getSavedGroundOffset() {
       return false;
     }
 
-    const curFrame = frameParam || (editor?.getCurrentFrame ? editor.getCurrentFrame() : null);
+    const curFrame =
+      frameParam || (editor?.getCurrentFrame ? editor.getCurrentFrame() : null);
     if (!curFrame) return false;
 
     // Lấy danh sách vật thể ở frame mục tiêu
     let frameObjs = [];
-    if (editor?.dataManager && typeof editor.dataManager.getFrameObject === "function") {
+    if (
+      editor?.dataManager &&
+      typeof editor.dataManager.getFrameObject === "function"
+    ) {
       frameObjs = editor.dataManager.getFrameObject(curFrame.id) || [];
     }
-    if ((!frameObjs || frameObjs.length === 0) && (!frameParam || curFrame === editor?.getCurrentFrame?.())) {
+    if (
+      (!frameObjs || frameObjs.length === 0) &&
+      (!frameParam || curFrame === editor?.getCurrentFrame?.())
+    ) {
       frameObjs = getAll3DObjects();
     }
 
     // Tìm Vật A ở frame mục tiêu
-    const qRef = String(relation.refTrackName || "").trim().toLowerCase().replace(/^#/, "");
-    const qRefId = String(relation.refTrackId || "").trim().toLowerCase();
+    const qRef = String(relation.refTrackName || "")
+      .trim()
+      .toLowerCase()
+      .replace(/^#/, "");
+    const qRefId = String(relation.refTrackId || "")
+      .trim()
+      .toLowerCase();
     const coneA = frameObjs.find((o) => {
-      const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
-      const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
-      const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "").trim().toLowerCase();
-      return (qRef && (tn === qRef || tid === qRef || id === qRef)) || (qRefId && (tid === qRefId || id === qRefId));
+      const tn = String(o?.userData?.trackName ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/^#/, "");
+      const tid = String(o?.userData?.trackId ?? "")
+        .trim()
+        .toLowerCase();
+      const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "")
+        .trim()
+        .toLowerCase();
+      return (
+        (qRef && (tn === qRef || tid === qRef || id === qRef)) ||
+        (qRefId && (tid === qRefId || id === qRefId))
+      );
     });
 
     if (!coneA || !coneA.position) {
@@ -1771,31 +1826,74 @@ function getSavedGroundOffset() {
     const targetL = relation.scale.x;
     const targetW = relation.scale.y;
 
-    const refYaw = (coneA.rotation && Number.isFinite(coneA.rotation.z)) ? coneA.rotation.z : 0;
+    const refYaw =
+      coneA.rotation && Number.isFinite(coneA.rotation.z)
+        ? coneA.rotation.z
+        : 0;
     const cosB = Math.cos(refYaw);
     const sinB = Math.sin(refYaw);
 
     // 1. Kiểm tra xem Vật B đã có ở frame này chưa
-    const qTarget = String(relation.targetTrackName || "").trim().toLowerCase().replace(/^#/, "");
-    const qTargetId = String(relation.targetTrackId || "").trim().toLowerCase();
+    const qTarget = String(relation.targetTrackName || "")
+      .trim()
+      .toLowerCase()
+      .replace(/^#/, "");
+    const qTargetId = String(relation.targetTrackId || "")
+      .trim()
+      .toLowerCase();
 
-    // Tìm xem user có đang chọn Vật B ở frame hiện tại không
+    // Tìm xem user có đang chọn Vật B ở frame hiện tại không (chỉ áp dụng khi gọi thủ công, KHÔNG áp dụng khi chạy batch)
     let targetConeB = null;
-    if (!frameParam || curFrame === editor?.getCurrentFrame?.()) {
+    if (!frameParam && curFrame === editor?.getCurrentFrame?.()) {
       const selectedObj = getSelectedObject();
-      if (selectedObj && selectedObj !== coneA && selectedObj.uuid !== coneA.uuid && selectedObj.position) {
-        targetConeB = selectedObj;
+      if (
+        selectedObj &&
+        selectedObj !== coneA &&
+        selectedObj.uuid !== coneA.uuid &&
+        selectedObj.position
+      ) {
+        const selName = String(selectedObj?.userData?.trackName ?? "")
+          .trim()
+          .toLowerCase()
+          .replace(/^#/, "");
+        const selTid = String(selectedObj?.userData?.trackId ?? "")
+          .trim()
+          .toLowerCase();
+        const selId = String(
+          selectedObj?.userData?.id ?? selectedObj?.id ?? selectedObj?.uuid ?? ""
+        )
+          .trim()
+          .toLowerCase();
+        const matchesTarget =
+          (!qTarget && !qTargetId) ||
+          (qTarget &&
+            (selName === qTarget || selTid === qTarget || selId === qTarget)) ||
+          (qTargetId && (selTid === qTargetId || selId === qTargetId));
+        if (matchesTarget) {
+          targetConeB = selectedObj;
+        }
       }
     }
 
     // Tìm theo TrackName / TrackId / ID trong danh sách vật thể của frame
     if (!targetConeB) {
       targetConeB = frameObjs.find((o) => {
-        if (o === coneA || (o.uuid && coneA.uuid && o.uuid === coneA.uuid)) return false;
-        const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
-        const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
-        const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "").trim().toLowerCase();
-        return (qTarget && (tn === qTarget || tid === qTarget || id === qTarget)) || (qTargetId && (tid === qTargetId || id === qTargetId));
+        if (o === coneA || (o.uuid && coneA.uuid && o.uuid === coneA.uuid))
+          return false;
+        const tn = String(o?.userData?.trackName ?? "")
+          .trim()
+          .toLowerCase()
+          .replace(/^#/, "");
+        const tid = String(o?.userData?.trackId ?? "")
+          .trim()
+          .toLowerCase();
+        const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "")
+          .trim()
+          .toLowerCase();
+        return (
+          (qTarget && (tn === qTarget || tid === qTarget || id === qTarget)) ||
+          (qTargetId && (tid === qTargetId || id === qTargetId))
+        );
       });
     }
 
@@ -1806,40 +1904,25 @@ function getSavedGroundOffset() {
     const mode = relation.mode || "offset";
     const radiusRef = Math.max(refL, refW) / 2;
     const radiusTarget = Math.max(targetL, targetW) / 2;
-    const centerDist = (relation.gap !== undefined && relation.gap > 0)
-      ? (radiusRef + radiusTarget + relation.gap)
-      : (relation.dist2D || (radiusRef + radiusTarget));
+    const centerDist =
+      relation.gap !== undefined && relation.gap > 0
+        ? radiusRef + radiusTarget + relation.gap
+        : relation.dist2D || radiusRef + radiusTarget;
 
-    let arcSnapResult = null;
     if (mode === "offset") {
-      const nominalAngle0 = Number.isFinite(relation.nominalAngle)
-        ? relation.nominalAngle
-        : Math.atan2(relation.deltaY || 0, relation.deltaX || 0);
-      const dYaw = refYaw - (relation.refYaw || 0);
-      const thetaNom = nominalAngle0 + dYaw;
-      const R = relation.dist2D || Math.hypot(relation.deltaX || 0, relation.deltaY || 0);
-
-      // TỰ HÚT THEO CHÙM ĐIỂM LIDAR TRÊN CUNG TRÒN BÁN KÍNH R (ĐƯỜNG CONG / XE ÔM CUA):
-      if (!frameParam || curFrame === editor?.getCurrentFrame?.()) {
-        try {
-          arcSnapResult = findArcSnapPoint(
-            { x: refX, y: refY },
-            R,
-            thetaNom,
-            refZ + (relation.deltaZ || 0),
-            targetConeB
-          );
-        } catch (e) {
-          console.warn("findArcSnapPoint error:", e);
-        }
-      }
-
-      if (arcSnapResult) {
-        newX = arcSnapResult.x;
-        newY = arcSnapResult.y;
+      if (
+        Number.isFinite(relation.localDx) &&
+        Number.isFinite(relation.localDy) &&
+        Number.isFinite(relation.refYaw)
+      ) {
+        const dYaw = refYaw - (relation.refYaw || 0);
+        const cosD = Math.cos(dYaw);
+        const sinD = Math.sin(dYaw);
+        newX = refX + (relation.deltaX * cosD - relation.deltaY * sinD);
+        newY = refY + (relation.deltaX * sinD + relation.deltaY * cosD);
       } else {
-        newX = refX + R * Math.cos(thetaNom);
-        newY = refY + R * Math.sin(thetaNom);
+        newX = refX + (relation.deltaX || 0);
+        newY = refY + (relation.deltaY || 0);
       }
       newZ = refZ + (relation.deltaZ || 0);
     } else if (mode === "line") {
@@ -1887,16 +1970,15 @@ function getSavedGroundOffset() {
     if (targetConeB) {
       // PHƯƠNG ÁN 3: CHỈ CHỈNH SỬA POSITION (X, Y, Z), GIỮ NGUYÊN 100% GÓC XOAY (YAW) CỦA VẬT B
       // KHÔNG CẦN SNAP MẶT ĐẤT: Giữ nguyên chênh lệch cao độ deltaZ chuẩn từ Mốc A (không bị rơi biển/lệch Z)
-      applyObjectTransform(targetConeB, { position: { x: newX, y: newY, z: newZ } });
+      applyObjectTransform(targetConeB, {
+        position: { x: newX, y: newY, z: newZ },
+      });
       curFrame.needSave = true;
       persistEditorState();
       if (badge && (!frameParam || curFrame === editor?.getCurrentFrame?.())) {
-        const bName = targetConeB.userData?.trackName || relation.targetTrackName || "";
-        if (arcSnapResult) {
-          badge.textContent = `🟢 Hút Arc R (#${bName}: ${arcSnapResult.pointsCount}pts)`;
-        } else {
-          badge.textContent = `🟢 Dời #${bName} (Khóa R)`;
-        }
+        const bName =
+          targetConeB.userData?.trackName || relation.targetTrackName || "";
+        badge.textContent = `🟢 Dời #${bName}`;
         badge.style.background = "#14532d";
         badge.style.color = "#86efac";
       }
@@ -1913,10 +1995,293 @@ function getSavedGroundOffset() {
   }
 
   let isBatchSyncRunning = false;
+  let isBatchUndoRunning = false;
+  // Chỉ giữ snapshot của batch gần nhất trong bộ nhớ phiên hiện tại.
+  let lastBatchUndo = null;
+
+  function normalizeBatchKey(value) {
+    return String(value ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/^#/, "");
+  }
+
+  function findBatchTargetObject(objects, relation) {
+    if (!Array.isArray(objects)) return null;
+    const targetName = normalizeBatchKey(relation?.targetTrackName);
+    const targetId = normalizeBatchKey(relation?.targetTrackId);
+    if (!targetName && !targetId) return null;
+    const matches = objects.filter((obj) => {
+      const name = normalizeBatchKey(obj?.userData?.trackName);
+      const trackId = normalizeBatchKey(obj?.userData?.trackId);
+      const id = normalizeBatchKey(obj?.userData?.id ?? obj?.id ?? obj?.uuid);
+      return (
+        (targetName &&
+          (name === targetName ||
+            trackId === targetName ||
+            id === targetName)) ||
+        (targetId && (trackId === targetId || id === targetId))
+      );
+    });
+    // Không đoán khi có nhiều đối tượng cùng khớp: rollback nhầm object còn nguy hiểm hơn bỏ qua.
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  function makeBatchSnapshot(frame, frameIndex, object) {
+    if (!frame || !object?.position) return null;
+    return {
+      frameId: frame.id,
+      frameIndex,
+      frameNeedSaveBefore: !!frame.needSave,
+      trackName: String(object?.userData?.trackName ?? ""),
+      trackId: String(object?.userData?.trackId ?? ""),
+      objectId: String(
+        object?.userData?.id ?? object?.id ?? object?.uuid ?? "",
+      ),
+      position: {
+        x: Number(object.position.x),
+        y: Number(object.position.y),
+        z: Number(object.position.z),
+      },
+    };
+  }
+
+  function findSnapshotObject(objects, snapshot) {
+    if (!Array.isArray(objects)) return null;
+    const trackId = normalizeBatchKey(snapshot.trackId);
+    const trackName = normalizeBatchKey(snapshot.trackName);
+    const objectId = normalizeBatchKey(snapshot.objectId);
+    const matches = objects.filter((obj) => {
+      const name = normalizeBatchKey(obj?.userData?.trackName);
+      const tid = normalizeBatchKey(obj?.userData?.trackId);
+      const id = normalizeBatchKey(obj?.userData?.id ?? obj?.id ?? obj?.uuid);
+      // Ưu tiên Track ID ổn định; chỉ fallback sang trackName/objectId khi cần.
+      if (trackId) return tid === trackId;
+      if (trackName) return name === trackName;
+      return objectId && id === objectId;
+    });
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  async function restoreBatchSnapshots(editor, snapshots, options = {}) {
+    const failures = [];
+    for (const snapshot of [...snapshots].reverse()) {
+      try {
+        const frame = editor?.state?.frames?.[snapshot.frameIndex];
+        if (!frame || frame.id !== snapshot.frameId) {
+          failures.push(`F${snapshot.frameIndex + 1}: frame ID không còn khớp`);
+          continue;
+        }
+        if (editor.state.frameIndex !== snapshot.frameIndex) {
+          if (typeof editor.loadFrame !== "function") {
+            failures.push(
+              `F${snapshot.frameIndex + 1}: editor không hỗ trợ loadFrame`,
+            );
+            continue;
+          }
+          await editor.loadFrame(snapshot.frameIndex, false, true);
+        }
+
+        const deadline = Date.now() + 5000;
+        let object = null;
+        while (Date.now() < deadline) {
+          if (editor.state?.frameIndex === snapshot.frameIndex) {
+            const objects = editor.dataManager?.getFrameObject?.(frame.id);
+            object = findSnapshotObject(objects, snapshot);
+            if (object) break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        if (!object) {
+          failures.push(
+            `F${snapshot.frameIndex + 1}: không tìm thấy duy nhất đối tượng để hoàn tác`,
+          );
+          continue;
+        }
+
+        const restored = applyObjectTransform(object, {
+          position: { ...snapshot.position },
+        });
+        if (!restored) {
+          failures.push(
+            `F${snapshot.frameIndex + 1}: cập nhật lại vị trí thất bại`,
+          );
+          continue;
+        }
+        if (options.restoreNeedSaveFlags)
+          frame.needSave = snapshot.frameNeedSaveBefore;
+        else frame.needSave = true;
+      } catch (error) {
+        console.error(
+          `[Batch Undo] Lỗi hoàn tác F${snapshot.frameIndex + 1}:`,
+          error,
+        );
+        failures.push(
+          `F${snapshot.frameIndex + 1}: ${error?.message || "lỗi không xác định"}`,
+        );
+      }
+    }
+    try {
+      getPagePc()?.render?.();
+    } catch (_) {}
+    return { restored: snapshots.length - failures.length, failures };
+  }
+
+  async function undoLastBatchSync() {
+    if (isBatchSyncRunning || isBatchUndoRunning) return;
+    const editor =
+      window.editor || window.__APP__?.editor || window.app?.editor;
+    const panel = document.getElementById(POSITION_PANEL_ID);
+    const badge = panel?.querySelector('[data-role="ref-z-badge"]');
+    const undoBtn = panel?.querySelector('[data-role="undo-batch-sync-btn"]');
+    if (!editor || !lastBatchUndo?.snapshots?.length) {
+      alert("Chưa có batch nào để hoàn tác trong phiên hiện tại.");
+      return;
+    }
+    if (
+      !confirm(
+        `Hoàn tác vị trí Vật B do batch gần nhất sửa trên ${lastBatchUndo.snapshots.length} frame? Các thay đổi khác sẽ không bị hoàn tác.`,
+      )
+    )
+      return;
+
+    isBatchUndoRunning = true;
+    const originalFrameIndex = editor.state.frameIndex;
+    if (undoBtn) {
+      undoBtn.disabled = true;
+      undoBtn.textContent = "⏳ Đang hoàn tác";
+    }
+    try {
+      const result = await restoreBatchSnapshots(
+        editor,
+        lastBatchUndo.snapshots,
+      );
+      if (
+        typeof editor.loadFrame === "function" &&
+        editor.state?.frameIndex !== originalFrameIndex
+      ) {
+        await editor.loadFrame(originalFrameIndex, false, true);
+      }
+      if (result.failures.length === 0) {
+        lastBatchUndo = null;
+        if (undoBtn) {
+          undoBtn.disabled = true;
+          undoBtn.style.opacity = ".55";
+          undoBtn.style.cursor = "not-allowed";
+        }
+        if (badge) {
+          badge.textContent = `↶ Đã hoàn tác ${result.restored} frame`;
+          badge.style.background = "#1e3a8a";
+          badge.style.color = "#bfdbfe";
+        }
+      } else {
+        // Giữ snapshot để người dùng có thể thử lại những frame chưa khôi phục được.
+        const failedFrames = new Set(
+          result.failures
+            .map((msg) => Number(msg.match(/^F(\d+)/)?.[1]))
+            .filter(Number.isFinite),
+        );
+        lastBatchUndo.snapshots = lastBatchUndo.snapshots.filter((snap) =>
+          failedFrames.has(snap.frameIndex + 1),
+        );
+        if (undoBtn) {
+          undoBtn.disabled = !lastBatchUndo.snapshots.length;
+          undoBtn.style.opacity = lastBatchUndo.snapshots.length ? "1" : ".55";
+          undoBtn.style.cursor = lastBatchUndo.snapshots.length
+            ? "pointer"
+            : "not-allowed";
+        }
+        alert(
+          `Đã hoàn tác ${result.restored} frame; còn ${result.failures.length} frame lỗi:\n${result.failures.join("\n")}`,
+        );
+      }
+    } finally {
+      try {
+        if (
+          typeof editor.loadFrame === "function" &&
+          editor.state?.frameIndex !== originalFrameIndex
+        ) {
+          await editor.loadFrame(originalFrameIndex, false, true);
+        }
+      } catch (restoreErr) {
+        console.error(
+          "Không thể quay lại frame ban đầu sau hoàn tác:",
+          restoreErr,
+        );
+      }
+      isBatchUndoRunning = false;
+      if (undoBtn) undoBtn.textContent = "↶ Hoàn tác";
+    }
+  }
+
+  // Chờ frame thực sự được nạp và có đúng Mốc A trước khi sửa annotation.
+  // Không dựa vào sleep cố định vì tốc độ tải point cloud/annotation thay đổi theo frame.
+  async function waitForBatchFrameReady(
+    editor,
+    frameIndex,
+    relation,
+    timeoutMs = 6000,
+  ) {
+    const startedAt = Date.now();
+    const frame = editor?.state?.frames?.[frameIndex];
+    if (!frame)
+      return { ready: false, reason: "Không tìm thấy metadata frame" };
+
+    const normalize = (value) =>
+      String(value ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/^#/, "");
+    const refName = normalize(relation?.refTrackName);
+    const refId = normalize(relation?.refTrackId);
+
+    let firstSeenObjectsAt = null;
+    const SETTLE_DELAY_MS = 1200; // Chờ tối đa 1.2s sau khi danh sách annotation đã nạp mà vẫn không thấy Mốc A
+
+    while (Date.now() - startedAt < timeoutMs) {
+      // Không tiếp tục nếu loadFrame chưa chuyển state sang frame đích.
+      if (editor?.state?.frameIndex === frameIndex) {
+        const objects = editor?.dataManager?.getFrameObject?.(frame.id);
+        if (Array.isArray(objects)) {
+          if (!firstSeenObjectsAt) {
+            firstSeenObjectsAt = Date.now();
+          }
+
+          const hasReference = objects.some((obj) => {
+            const name = normalize(obj?.userData?.trackName);
+            const trackId = normalize(obj?.userData?.trackId);
+            const id = normalize(obj?.userData?.id ?? obj?.id ?? obj?.uuid);
+            return (
+              (refName &&
+                (name === refName || trackId === refName || id === refName)) ||
+              (refId && (trackId === refId || id === refId))
+            );
+          });
+          if (hasReference) return { ready: true, frame, objects };
+
+          // Nếu danh sách objects đã nạp và chờ thêm 1.2s mà Mốc A vẫn không xuất hiện,
+          // kết luận sớm frame này không có Mốc A để tránh treo lãng phí 8-10s mỗi frame.
+          if (Date.now() - firstSeenObjectsAt >= SETTLE_DELAY_MS) {
+            return {
+              ready: false,
+              reason: `Frame ${frameIndex + 1} không có Mốc A (#${relation?.refTrackName || "?"})`,
+            };
+          }
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    return {
+      ready: false,
+      reason: `Hết thời gian chờ frame ${frameIndex + 1} hoặc không tìm thấy Mốc A (#${relation?.refTrackName || "?"})`,
+    };
+  }
 
   async function batchSyncConeB() {
     if (isBatchSyncRunning) return;
-    const editor = window.editor || window.__APP__?.editor || window.app?.editor;
+    const editor =
+      window.editor || window.__APP__?.editor || window.app?.editor;
     const panel = document.getElementById(POSITION_PANEL_ID);
     const badge = panel?.querySelector('[data-role="ref-z-badge"]');
     if (!editor || !editor.state || !Array.isArray(editor.state.frames)) {
@@ -1926,7 +2291,9 @@ function getSavedGroundOffset() {
 
     const relation = getSavedConeRelation();
     if (!relation || !relation.refTrackName) {
-      alert("Vui lòng chốt chuẩn A-B ở frame làm chuẩn trước (bấm nút '⭐ Chốt Chuẩn A-B').");
+      alert(
+        "Vui lòng chốt chuẩn A-B ở frame làm chuẩn trước (bấm nút '⭐ Chốt Chuẩn A-B').",
+      );
       return;
     }
 
@@ -1950,7 +2317,9 @@ function getSavedGroundOffset() {
     }
 
     if (fromNum < 1 || toNum > totalF || fromNum > toNum) {
-      alert(`Khoảng frame không hợp lệ: Từ ${fromNum} đến ${toNum} (Tổng dataset có ${totalF} frame)`);
+      alert(
+        `Khoảng frame không hợp lệ: Từ ${fromNum} đến ${toNum} (Tổng dataset có ${totalF} frame)`,
+      );
       return;
     }
 
@@ -1963,8 +2332,15 @@ function getSavedGroundOffset() {
       batchBtn.style.opacity = "0.6";
       batchBtn.textContent = "⏳ Đang chạy...";
     }
+    const undoBtn = panel?.querySelector('[data-role="undo-batch-sync-btn"]');
+    if (undoBtn) {
+      undoBtn.disabled = true;
+      undoBtn.style.opacity = ".55";
+      undoBtn.style.cursor = "not-allowed";
+    }
 
     let count = 0;
+    const batchSnapshots = [];
     try {
       for (let f = fromNum - 1; f < toNum; f++) {
         const frameNum = f + 1;
@@ -1974,32 +2350,76 @@ function getSavedGroundOffset() {
           badge.style.color = "#c7d2fe";
         }
 
-        // 1. Chuyển frame và nạp toàn bộ point cloud + annotation của frame f
+        // 1. Chuyển frame; nếu loadFrame không có thì chỉ xử lý frame đang mở.
         if (editor.state.frameIndex !== f) {
-          if (typeof editor.loadFrame === "function") {
-            await editor.loadFrame(f, false, true);
+          if (typeof editor.loadFrame !== "function") {
+            throw new Error(
+              "Editor không hỗ trợ loadFrame; dừng để tránh sửa nhầm frame.",
+            );
           }
+          await editor.loadFrame(f, false, true);
         }
 
-        // Chờ 60ms cho Three.js và dữ liệu frame f sẵn sàng
-        await new Promise((r) => setTimeout(r, 60));
+        // 2. Chỉ thao tác khi state đã đúng frame và annotation của Mốc A đã sẵn sàng.
+        const readiness = await waitForBatchFrameReady(
+          editor,
+          f,
+          relation,
+          6000,
+        );
+        if (!readiness.ready) {
+          console.warn(`[Batch Sync] Bỏ qua F${frameNum}: ${readiness.reason}`);
+          continue;
+        }
+        if (
+          editor.state.frameIndex !== f ||
+          editor.state.frames?.[f]?.id !== readiness.frame.id
+        ) {
+          console.warn(
+            `[Batch Sync] Bỏ qua F${frameNum}: frame đã thay đổi trong lúc chờ.`,
+          );
+          continue;
+        }
 
-        // 2. Dời vị trí Cone B ở frame f theo khoảng cách chuẩn
-        const ok = spawnConeB();
+        // 3. Chụp vị trí B trước khi sửa để có thể hoàn tác chính xác.
+        const targetBefore = findBatchTargetObject(readiness.objects, relation);
+        const snapshot = targetBefore
+          ? makeBatchSnapshot(readiness.frame, f, targetBefore)
+          : null;
+        if (!snapshot) {
+          console.warn(
+            `[Batch Sync] Bỏ qua F${frameNum}: không xác định duy nhất Vật B để tạo snapshot an toàn.`,
+          );
+          continue;
+        }
+        // Đưa snapshot vào trước khi mutate để vẫn có thể rollback nếu thao tác ném lỗi giữa chừng.
+        batchSnapshots.push(snapshot);
+        const ok = spawnConeB(readiness.frame);
         if (ok) {
           count++;
-          const frameObj = editor.state?.frames?.[f];
-          if (frameObj) frameObj.needSave = true;
+          readiness.frame.needSave = true;
+        } else {
+          batchSnapshots.pop();
         }
       }
 
       // Quay lại frame ban đầu (nếu khác frame hiện tại)
-      if (typeof editor.loadFrame === "function" && editor.state.frameIndex !== originalFrameIndex) {
+      if (
+        typeof editor.loadFrame === "function" &&
+        editor.state.frameIndex !== originalFrameIndex
+      ) {
         await editor.loadFrame(originalFrameIndex, false, true);
       }
 
-      const curFrame = editor.getCurrentFrame?.();
-      if (curFrame) curFrame.needSave = true;
+      lastBatchUndo = batchSnapshots.length
+        ? { snapshots: batchSnapshots, createdAt: Date.now() }
+        : null;
+      const undoBtn = panel?.querySelector('[data-role="undo-batch-sync-btn"]');
+      if (undoBtn) {
+        undoBtn.disabled = !lastBatchUndo;
+        undoBtn.style.opacity = lastBatchUndo ? "1" : ".55";
+        undoBtn.style.cursor = lastBatchUndo ? "pointer" : "not-allowed";
+      }
 
       if (badge) {
         badge.textContent = `🟢 Đã dời ${count} frame`;
@@ -2007,19 +2427,64 @@ function getSavedGroundOffset() {
         badge.style.color = "#86efac";
       }
 
-      const benchmarkBanner = panel?.querySelector('[data-role="ref-benchmark-status"]');
+      const benchmarkBanner = panel?.querySelector(
+        '[data-role="ref-benchmark-status"]',
+      );
       if (benchmarkBanner) {
         benchmarkBanner.style.display = "block";
         benchmarkBanner.innerHTML = `⭐ <b>Chuẩn F${benchF}:</b> #${relation.refTrackName} ➜ #${relation.targetTrackName}<br/><span style="color:#86efac;font-size:9px;font-weight:700;">✓ Đã đồng bộ dời vị trí ${count} frame (F${fromNum} ➜ F${toNum})!<br/>(🎯 Giữ nguyên Yaw của B - Vui lòng bấm Save để lưu)</span>`;
       }
     } catch (err) {
       console.error("Lỗi khi chạy Chuỗi F:", err);
-      if (badge) {
-        badge.textContent = "Lỗi chuỗi F";
+      // Batch lỗi giữa chừng: tự khôi phục mọi vị trí đã chụp, theo thứ tự ngược.
+      if (batchSnapshots.length) {
+        const rollback = await restoreBatchSnapshots(editor, batchSnapshots, {
+          restoreNeedSaveFlags: true,
+        });
+        lastBatchUndo = null;
+        const undoBtn = panel?.querySelector(
+          '[data-role="undo-batch-sync-btn"]',
+        );
+        if (undoBtn) {
+          undoBtn.disabled = true;
+          undoBtn.style.opacity = ".55";
+          undoBtn.style.cursor = "not-allowed";
+        }
+        console.error("Batch rollback result:", rollback);
+        if (badge) {
+          badge.textContent = rollback.failures.length
+            ? `⚠ Lỗi batch; rollback ${rollback.restored}/${batchSnapshots.length}`
+            : `↶ Batch lỗi đã rollback ${rollback.restored} frame`;
+          badge.style.background = rollback.failures.length
+            ? "#7f1d1d"
+            : "#1e3a8a";
+          badge.style.color = "#fca5a5";
+        }
+        if (rollback.failures.length) {
+          alert(
+            `Batch gặp lỗi: ${err?.message || err}\nĐã rollback ${rollback.restored}/${batchSnapshots.length} frame. Cần kiểm tra thủ công các frame lỗi:\n${rollback.failures.join("\n")}`,
+          );
+        }
+      } else if (badge) {
+        badge.textContent = "Lỗi chuỗi F — chưa có thay đổi để rollback";
         badge.style.background = "#7f1d1d";
         badge.style.color = "#fca5a5";
       }
     } finally {
+      // Luôn cố gắng quay về frame ban đầu, kể cả khi batch gặp lỗi.
+      try {
+        if (
+          typeof editor.loadFrame === "function" &&
+          editor.state?.frameIndex !== originalFrameIndex
+        ) {
+          await editor.loadFrame(originalFrameIndex, false, true);
+        }
+      } catch (restoreErr) {
+        console.error(
+          "Không thể quay lại frame ban đầu sau batch sync:",
+          restoreErr,
+        );
+      }
       isBatchSyncRunning = false;
       if (batchBtn) {
         batchBtn.disabled = false;
@@ -2036,7 +2501,8 @@ function getSavedGroundOffset() {
 
   async function smoothTrackTrajectory() {
     if (isSmoothingTrack) return;
-    const editor = window.editor || window.__APP__?.editor || window.app?.editor;
+    const editor =
+      window.editor || window.__APP__?.editor || window.app?.editor;
     const panel = document.getElementById(POSITION_PANEL_ID);
     const badge = panel?.querySelector('[data-role="ref-z-badge"]');
     const curObj = getSelectedObject();
@@ -2051,9 +2517,12 @@ function getSavedGroundOffset() {
       return;
     }
 
-    const trackName = curObj.userData?.trackName || curObj.userData?.trackId || "1";
+    const trackName =
+      curObj.userData?.trackName || curObj.userData?.trackId || "1";
     const trackId = curObj.userData?.trackId || "";
-    const totalF = Array.isArray(editor?.state?.frames) ? editor.state.frames.length : 1;
+    const totalF = Array.isArray(editor?.state?.frames)
+      ? editor.state.frames.length
+      : 1;
 
     const fromInput = panel?.querySelector('[data-role="batch-from-frame"]');
     const toInput = panel?.querySelector('[data-role="batch-to-frame"]');
@@ -2116,10 +2585,20 @@ function getSavedGroundOffset() {
           objs = getAll3DObjects();
         }
         const match = objs.find((o) => {
-          const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
-          const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
-          const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "").trim().toLowerCase();
-          return (qName && (tn === qName || tid === qName || id === qName)) || (qId && (tid === qId || tn === qId || id === qId));
+          const tn = String(o?.userData?.trackName ?? "")
+            .trim()
+            .toLowerCase()
+            .replace(/^#/, "");
+          const tid = String(o?.userData?.trackId ?? "")
+            .trim()
+            .toLowerCase();
+          const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "")
+            .trim()
+            .toLowerCase();
+          return (
+            (qName && (tn === qName || tid === qName || id === qName)) ||
+            (qId && (tid === qId || tn === qId || id === qId))
+          );
         });
 
         if (match && match.position) {
@@ -2131,13 +2610,18 @@ function getSavedGroundOffset() {
             x: match.position.x,
             y: match.position.y,
             z: match.position.z,
-            yaw: (match.rotation && Number.isFinite(match.rotation.z)) ? match.rotation.z : 0,
+            yaw:
+              match.rotation && Number.isFinite(match.rotation.z)
+                ? match.rotation.z
+                : 0,
           });
         }
       }
 
       if (trackPoints.length < 3) {
-        alert(`Track #${trackName} chỉ có ${trackPoints.length} frame trong khoảng F${fromNum} - F${toNum}. Cần tối thiểu 3 frame để làm mượt quỹ đạo!`);
+        alert(
+          `Track #${trackName} chỉ có ${trackPoints.length} frame trong khoảng F${fromNum} - F${toNum}. Cần tối thiểu 3 frame để làm mượt quỹ đạo!`,
+        );
         return;
       }
 
@@ -2164,7 +2648,10 @@ function getSavedGroundOffset() {
         const next = trackPoints[i + 1];
 
         // Nếu 3 frame liên tiếp (không bị ngắt quãng quá 2 frame)
-        if (curr.frameNum - prev.frameNum <= 2 && next.frameNum - curr.frameNum <= 2) {
+        if (
+          curr.frameNum - prev.frameNum <= 2 &&
+          next.frameNum - curr.frameNum <= 2
+        ) {
           const sx = 0.25 * prev.x + 0.5 * curr.x + 0.25 * next.x;
           const sy = 0.25 * prev.y + 0.5 * curr.y + 0.25 * next.y;
           const sz = 0.25 * prev.z + 0.5 * curr.z + 0.25 * next.z;
@@ -2173,8 +2660,14 @@ function getSavedGroundOffset() {
           const pYaw = Number.isFinite(prev.yaw) ? prev.yaw : 0;
           const cYaw = Number.isFinite(curr.yaw) ? curr.yaw : 0;
           const nYaw = Number.isFinite(next.yaw) ? next.yaw : 0;
-          const cosAvg = 0.25 * Math.cos(pYaw) + 0.5 * Math.cos(cYaw) + 0.25 * Math.cos(nYaw);
-          const sinAvg = 0.25 * Math.sin(pYaw) + 0.5 * Math.sin(cYaw) + 0.25 * Math.sin(nYaw);
+          const cosAvg =
+            0.25 * Math.cos(pYaw) +
+            0.5 * Math.cos(cYaw) +
+            0.25 * Math.cos(nYaw);
+          const sinAvg =
+            0.25 * Math.sin(pYaw) +
+            0.5 * Math.sin(cYaw) +
+            0.25 * Math.sin(nYaw);
           let sYaw = Math.atan2(sinAvg, cosAvg);
           if (!Number.isFinite(sYaw)) sYaw = cYaw;
 
@@ -2204,7 +2697,10 @@ function getSavedGroundOffset() {
         item.obj.position.z = sm.z;
         if (item.obj.rotation && Number.isFinite(sm.yaw)) {
           item.obj.rotation.z = sm.yaw;
-          if (item.obj.quaternion && typeof item.obj.quaternion.setFromEuler === "function") {
+          if (
+            item.obj.quaternion &&
+            typeof item.obj.quaternion.setFromEuler === "function"
+          ) {
             item.obj.quaternion.setFromEuler(item.obj.rotation);
           }
         }
@@ -2220,7 +2716,10 @@ function getSavedGroundOffset() {
       }
 
       // Quay lại frame ban đầu nếu bị chuyển
-      if (typeof editor.loadFrame === "function" && editor.state.frameIndex !== originalFrameIndex) {
+      if (
+        typeof editor.loadFrame === "function" &&
+        editor.state.frameIndex !== originalFrameIndex
+      ) {
         await editor.loadFrame(originalFrameIndex, false, true);
       }
 
@@ -2234,7 +2733,9 @@ function getSavedGroundOffset() {
         badge.style.color = "#86efac";
       }
 
-      const benchmarkBanner = panel?.querySelector('[data-role="ref-benchmark-status"]');
+      const benchmarkBanner = panel?.querySelector(
+        '[data-role="ref-benchmark-status"]',
+      );
       if (benchmarkBanner) {
         benchmarkBanner.style.display = "block";
         benchmarkBanner.innerHTML = `🌊 <b>Đã làm mượt quỹ đạo Track #${trackName}!</b><br/><span style="color:#6ee7b7;font-size:9px;font-weight:700;">✓ Đã lọc phẳng ${smoothedCount} frame (F${trackPoints[0].frameNum} ➜ F${trackPoints[N - 1].frameNum})!</span><br/><span style="color:#cbd5e1;font-size:8.5px;">Triệt tiêu 100% rung lắc tia LiDAR. Nhớ bấm <b>Save</b> để lưu bài.</span>`;
@@ -2333,16 +2834,16 @@ function getSavedGroundOffset() {
 
   let aimTargetState = {
     active: false,
-    point: null,             // { x, y, z }
-    mode: "point",           // "point" | "track" | "ego"
+    point: null, // { x, y, z }
+    mode: "point", // "point" | "track" | "ego"
     targetTrackId: "",
-    faceOffset: 0,           // rad
+    faceOffset: 0, // rad
     autoOnFrameChange: true,
-    worldAnchor: true,       // Bám theo đường cong thế giới
-    anchorBasePoint: null,   // { x, y, z, yaw } của vật ở frame chốt điểm
+    worldAnchor: true, // Bám theo đường cong thế giới
+    anchorBasePoint: null, // { x, y, z, yaw } của vật ở frame chốt điểm
     anchorFrame: null,
-    anchorTrackName: "",     // Tên/ID của track làm mốc khi chốt điểm ngắm
-    framePoints: {},         // Cache { [frameNum]: { x, y, z } }
+    anchorTrackName: "", // Tên/ID của track làm mốc khi chốt điểm ngắm
+    framePoints: {}, // Cache { [frameNum]: { x, y, z } }
   };
 
   let isPickingAimPoint = false;
@@ -2354,7 +2855,10 @@ function getSavedGroundOffset() {
       if (raw) {
         const parsed = JSON.parse(raw);
         aimTargetState = Object.assign(aimTargetState, parsed);
-        if (!aimTargetState.framePoints || typeof aimTargetState.framePoints !== "object") {
+        if (
+          !aimTargetState.framePoints ||
+          typeof aimTargetState.framePoints !== "object"
+        ) {
           aimTargetState.framePoints = {};
         }
       }
@@ -2363,12 +2867,20 @@ function getSavedGroundOffset() {
 
   function saveAimTargetState() {
     try {
-      localStorage.setItem(AIM_TARGET_STORAGE_KEY, JSON.stringify(aimTargetState));
+      localStorage.setItem(
+        AIM_TARGET_STORAGE_KEY,
+        JSON.stringify(aimTargetState),
+      );
     } catch (_) {}
   }
 
-  function findLidarClusterCentroidNear(point, searchRadius = 2.0, zTolerance = 1.5) {
-    if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+  function findLidarClusterCentroidNear(
+    point,
+    searchRadius = 2.0,
+    zTolerance = 1.5,
+  ) {
+    if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y))
+      return null;
     try {
       const pc = getPagePc();
       const groupPoints = pc?.groupPoints?.children?.[0];
@@ -2401,8 +2913,13 @@ function getSavedGroundOffset() {
       if (hits.length >= 3) {
         // Lọc lấy 50% các điểm gần tâm dự đoán nhất để loại bỏ nhiễu biên
         hits.sort((a, b) => a.dSq - b.dSq);
-        const takeN = Math.max(3, Math.min(hits.length, Math.ceil(hits.length * 0.5)));
-        let sumX = 0, sumY = 0, sumZ = 0;
+        const takeN = Math.max(
+          3,
+          Math.min(hits.length, Math.ceil(hits.length * 0.5)),
+        );
+        let sumX = 0,
+          sumY = 0,
+          sumZ = 0;
         for (let j = 0; j < takeN; j++) {
           sumX += hits[j].x;
           sumY += hits[j].y;
@@ -2431,8 +2948,12 @@ function getSavedGroundOffset() {
 
     // Mode 2: Bám theo 1 Track ID khác
     if (aimTargetState.mode === "track" && aimTargetState.targetTrackId) {
-      const editor = window.editor || window.__APP__?.editor || window.app?.editor;
-      const fIdx = typeof targetFrameIndex === "number" ? targetFrameIndex : (editor?.state?.frameIndex || 0);
+      const editor =
+        window.editor || window.__APP__?.editor || window.app?.editor;
+      const fIdx =
+        typeof targetFrameIndex === "number"
+          ? targetFrameIndex
+          : editor?.state?.frameIndex || 0;
       const frame = editor?.state?.frames?.[fIdx];
       let objs = [];
       if (frame && editor?.dataManager?.getFrameObject) {
@@ -2440,25 +2961,48 @@ function getSavedGroundOffset() {
       }
       if (objs.length === 0) objs = getAll3DObjects();
 
-      const qTrack = String(aimTargetState.targetTrackId).trim().toLowerCase().replace(/^#/, "");
+      const qTrack = String(aimTargetState.targetTrackId)
+        .trim()
+        .toLowerCase()
+        .replace(/^#/, "");
       const match = objs.find((o) => {
-        if (o === targetObj || (o.uuid && targetObj && o.uuid === targetObj.uuid)) return false;
-        const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
-        const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
-        const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "").trim().toLowerCase();
+        if (
+          o === targetObj ||
+          (o.uuid && targetObj && o.uuid === targetObj.uuid)
+        )
+          return false;
+        const tn = String(o?.userData?.trackName ?? "")
+          .trim()
+          .toLowerCase()
+          .replace(/^#/, "");
+        const tid = String(o?.userData?.trackId ?? "")
+          .trim()
+          .toLowerCase();
+        const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "")
+          .trim()
+          .toLowerCase();
         return tn === qTrack || tid === qTrack || id === qTrack;
       });
       if (match && match.position) {
-        return { x: match.position.x, y: match.position.y, z: match.position.z };
+        return {
+          x: match.position.x,
+          y: match.position.y,
+          z: match.position.z,
+        };
       }
     }
 
     // Mode 3: Điểm tự do đã chấm (Point)
     if (!aimTargetState.point) return null;
 
-    const editor = window.editor || window.__APP__?.editor || window.app?.editor;
-    const currentFrameNum = getCurrentFrameNumber() || ((editor?.state?.frameIndex ?? 0) + 1);
-    const targetFrameNum = typeof targetFrameIndex === "number" ? targetFrameIndex + 1 : currentFrameNum;
+    const editor =
+      window.editor || window.__APP__?.editor || window.app?.editor;
+    const currentFrameNum =
+      getCurrentFrameNumber() || (editor?.state?.frameIndex ?? 0) + 1;
+    const targetFrameNum =
+      typeof targetFrameIndex === "number"
+        ? targetFrameIndex + 1
+        : currentFrameNum;
     const anchorFrameNum = aimTargetState.anchorFrame || 1;
 
     // 1. Đúng frame chốt điểm (anchor frame): Giữ nguyên tọa độ đã chấm trên LiDAR của frame này.
@@ -2471,7 +3015,10 @@ function getSavedGroundOffset() {
     }
 
     // 2. Nếu đã có cache tọa độ đích ĐÃ HÚT LIDAR THẬT THÀNH CÔNG của frame này:
-    if (aimTargetState.framePoints && aimTargetState.framePoints[targetFrameNum]) {
+    if (
+      aimTargetState.framePoints &&
+      aimTargetState.framePoints[targetFrameNum]
+    ) {
       return aimTargetState.framePoints[targetFrameNum];
     }
 
@@ -2483,14 +3030,26 @@ function getSavedGroundOffset() {
     // Ưu tiên tìm đúng vật mốc theo anchorTrackName
     const fIdx = targetFrameNum - 1;
     const frame = editor?.state?.frames?.[fIdx];
-    let objs = (frame && editor?.dataManager?.getFrameObject) ? editor.dataManager.getFrameObject(frame.id) || [] : [];
-    if (objs.length === 0 && fIdx === editor?.state?.frameIndex) objs = getAll3DObjects();
+    let objs =
+      frame && editor?.dataManager?.getFrameObject
+        ? editor.dataManager.getFrameObject(frame.id) || []
+        : [];
+    if (objs.length === 0 && fIdx === editor?.state?.frameIndex)
+      objs = getAll3DObjects();
 
-    const qTrack = String(aimTargetState.anchorTrackName || "").trim().toLowerCase().replace(/^#/, "");
+    const qTrack = String(aimTargetState.anchorTrackName || "")
+      .trim()
+      .toLowerCase()
+      .replace(/^#/, "");
     if (qTrack && objs.length > 0) {
       const match = objs.find((o) => {
-        const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
-        const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
+        const tn = String(o?.userData?.trackName ?? "")
+          .trim()
+          .toLowerCase()
+          .replace(/^#/, "");
+        const tid = String(o?.userData?.trackId ?? "")
+          .trim()
+          .toLowerCase();
         return tn === qTrack || tid === qTrack;
       });
       if (match && match.position) refPos = match.position;
@@ -2516,20 +3075,8 @@ function getSavedGroundOffset() {
         z: (refPos.z ?? 0) + deltaZ,
       };
 
-      // 4. Hút chính xác vào cụm hạt LiDAR của góc cây cầu / cột mốc nếu đang ở frame hiện tại
-      if (targetFrameNum === currentFrameNum) {
-        const frameDiff = Math.abs(targetFrameNum - anchorFrameNum);
-        const dynamicRadius = Math.min(3.0, 1.8 + frameDiff * 0.15);
-        const cluster = findLidarClusterCentroidNear(predPoint, dynamicRadius, 1.5);
-        if (cluster) {
-          predPoint = { x: cluster.x, y: cluster.y, z: cluster.z };
-          // CHỈ lưu vào cache khi đã hút được hạt LiDAR thật!
-          if (!aimTargetState.framePoints) aimTargetState.framePoints = {};
-          aimTargetState.framePoints[targetFrameNum] = predPoint;
-          saveAimTargetState();
-        }
-      }
-
+      // Điểm ước tính chuẩn xác 100% theo độ dịch chuyển thế giới thực.
+      // Bảo toàn góc ngắm ổn định qua mọi frame, không để các hạt LiDAR nhiễu (xe cộ, dải phân cách) làm lệch hướng biển báo!
       return predPoint;
     }
 
@@ -2556,7 +3103,11 @@ function getSavedGroundOffset() {
     }
 
     const targetPoint = getResolvedAimTargetPoint(targetObj);
-    if (!targetPoint || !Number.isFinite(targetPoint.x) || !Number.isFinite(targetPoint.y)) {
+    if (
+      !targetPoint ||
+      !Number.isFinite(targetPoint.x) ||
+      !Number.isFinite(targetPoint.y)
+    ) {
       if (badge) {
         badge.textContent = "Chưa ghim đích";
         badge.style.background = "#713f12";
@@ -2579,7 +3130,9 @@ function getSavedGroundOffset() {
     if (!Number.isFinite(finalYaw)) return false;
 
     if (targetObj.rotation) {
-      const newRot = targetObj.rotation.clone ? targetObj.rotation.clone() : { x: 0, y: 0, z: 0 };
+      const newRot = targetObj.rotation.clone
+        ? targetObj.rotation.clone()
+        : { x: 0, y: 0, z: 0 };
       newRot.z = Number(finalYaw.toFixed(4));
       applyObjectTransform(targetObj, { rotation: newRot });
     }
@@ -2597,7 +3150,9 @@ function getSavedGroundOffset() {
     let idx = 0;
     let minDiff = Infinity;
     FACE_OFFSETS.forEach((val, i) => {
-      const diff = Math.abs(Math.atan2(Math.sin(cur - val), Math.cos(cur - val)));
+      const diff = Math.abs(
+        Math.atan2(Math.sin(cur - val), Math.cos(cur - val)),
+      );
       if (diff < minDiff) {
         minDiff = diff;
         idx = i;
@@ -2725,12 +3280,22 @@ function getSavedGroundOffset() {
       const pc = getPagePc();
       const groupPoints = pc?.groupPoints?.children?.[0];
       const posAttr = groupPoints?.geometry?.getAttribute("position");
-      if (posAttr && posAttr.array && posAttr.count > 0 && rayOrigin && rayDir) {
+      if (
+        posAttr &&
+        posAttr.array &&
+        posAttr.count > 0 &&
+        rayOrigin &&
+        rayDir
+      ) {
         const arr = posAttr.array;
         const count = posAttr.count;
 
-        const ox = rayOrigin.x, oy = rayOrigin.y, oz = rayOrigin.z;
-        const dx = rayDir.x, dy = rayDir.y, dz = rayDir.z;
+        const ox = rayOrigin.x,
+          oy = rayOrigin.y,
+          oz = rayOrigin.z;
+        const dx = rayDir.x,
+          dy = rayDir.y,
+          dz = rayDir.z;
         const isOrtho = Boolean(view.camera.isOrthographicCamera);
 
         // Góc mở tương đương bán kính chuột ~18 pixel trên màn hình
@@ -2862,7 +3427,10 @@ function getSavedGroundOffset() {
 
     // 6. Top-down Orthographic unproject
     try {
-      if (view.camera.isOrthographicCamera && view.camera.position?.constructor) {
+      if (
+        view.camera.isOrthographicCamera &&
+        view.camera.position?.constructor
+      ) {
         const Vector3 = view.camera.position.constructor;
         const p = new Vector3(ndcX, ndcY, 0);
         p.unproject(view.camera);
@@ -2934,7 +3502,11 @@ function getSavedGroundOffset() {
       }
 
       if (matchedView) {
-        pickedPoint = calculateWorldPointFromView(matchedView, e.clientX, e.clientY);
+        pickedPoint = calculateWorldPointFromView(
+          matchedView,
+          e.clientX,
+          e.clientY,
+        );
       }
     }
 
@@ -2943,7 +3515,11 @@ function getSavedGroundOffset() {
         pc.renderViews?.find((v) => v?.camera?.isPerspectiveCamera) ||
         pc.renderViews?.[0];
       if (mainView) {
-        pickedPoint = calculateWorldPointFromView(mainView, e.clientX, e.clientY);
+        pickedPoint = calculateWorldPointFromView(
+          mainView,
+          e.clientX,
+          e.clientY,
+        );
       }
     }
 
@@ -2964,7 +3540,7 @@ function getSavedGroundOffset() {
       aimTargetState.targetTrackId = "";
       aimTargetState.anchorFrame = curF;
       aimTargetState.anchorTrackName = String(
-        curObj?.userData?.trackName || curObj?.userData?.trackId || "1"
+        curObj?.userData?.trackName || curObj?.userData?.trackId || "1",
       );
       aimTargetState.isLidarPoint = Boolean(pickedPoint.isLidarPoint);
       aimTargetState.framePoints = {
@@ -3133,7 +3709,10 @@ function getSavedGroundOffset() {
     } else {
       const isLidar = Boolean(aimTargetState.isLidarPoint);
       const curF = getCurrentFrameNumber() || 1;
-      const fPrefix = (aimTargetState.anchorFrame && curF !== aimTargetState.anchorFrame) ? `F${curF} ` : "";
+      const fPrefix =
+        aimTargetState.anchorFrame && curF !== aimTargetState.anchorFrame
+          ? `F${curF} `
+          : "";
       if (badge) {
         const tx = targetPoint
           ? targetPoint.x.toFixed(1)
@@ -3155,9 +3734,16 @@ function getSavedGroundOffset() {
           ? targetPoint.y.toFixed(2)
           : aimTargetState.point.y.toFixed(2);
         const tz = targetPoint
-          ? (targetPoint.z !== undefined ? Number(targetPoint.z).toFixed(2) : "0.00")
-          : (aimTargetState.point?.z !== undefined ? Number(aimTargetState.point.z).toFixed(2) : "0.00");
-        const fInfo = (aimTargetState.anchorFrame && curF !== aimTargetState.anchorFrame) ? ` [Neo F${aimTargetState.anchorFrame}]` : "";
+          ? targetPoint.z !== undefined
+            ? Number(targetPoint.z).toFixed(2)
+            : "0.00"
+          : aimTargetState.point?.z !== undefined
+            ? Number(aimTargetState.point.z).toFixed(2)
+            : "0.00";
+        const fInfo =
+          aimTargetState.anchorFrame && curF !== aimTargetState.anchorFrame
+            ? ` [Neo F${aimTargetState.anchorFrame}]`
+            : "";
         textEl.textContent = `${isLidar ? "🟢 LiDAR: " : ""}X: ${tx}, Y: ${ty}, Z: ${tz}${distStr}${fInfo}`;
       }
     }
@@ -3177,7 +3763,9 @@ function getSavedGroundOffset() {
       return;
     }
     if (!aimTargetState.point && aimTargetState.mode !== "ego") {
-      alert("Vui lòng chấm điểm ngắm (hoặc chọn Lấy Box Đích / Đón Đầu Xe) trước!");
+      alert(
+        "Vui lòng chấm điểm ngắm (hoặc chọn Lấy Box Đích / Đón Đầu Xe) trước!",
+      );
       return;
     }
 
@@ -3207,9 +3795,16 @@ function getSavedGroundOffset() {
         objs = getAll3DObjects();
       }
       const match = objs.find((o) => {
-        const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
-        const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
-        const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "").trim().toLowerCase();
+        const tn = String(o?.userData?.trackName ?? "")
+          .trim()
+          .toLowerCase()
+          .replace(/^#/, "");
+        const tid = String(o?.userData?.trackId ?? "")
+          .trim()
+          .toLowerCase();
+        const id = String(o?.userData?.id ?? o?.id ?? o?.uuid ?? "")
+          .trim()
+          .toLowerCase();
         return (
           (qName && (tn === qName || tid === qName || id === qName)) ||
           (qId && (tid === qId || tn === qId || id === qId))
@@ -3227,10 +3822,7 @@ function getSavedGroundOffset() {
             const faceOffset = Number(aimTargetState.faceOffset) || 0;
             let finalYaw = baseAngle + faceOffset;
             if (Number.isFinite(finalYaw)) {
-              finalYaw = Math.atan2(
-                Math.sin(finalYaw),
-                Math.cos(finalYaw),
-              );
+              finalYaw = Math.atan2(Math.sin(finalYaw), Math.cos(finalYaw));
               if (Number.isFinite(finalYaw)) {
                 if (match.rotation) {
                   match.rotation.z = Number(finalYaw.toFixed(4));
@@ -3243,7 +3835,9 @@ function getSavedGroundOffset() {
                 }
                 frame.needSave = true;
                 if (f === editor.state.frameIndex) {
-                  applyObjectTransform(match, { rotation: match.rotation.clone() });
+                  applyObjectTransform(match, {
+                    rotation: match.rotation.clone(),
+                  });
                 }
                 rotatedCount++;
               }
@@ -3261,7 +3855,6 @@ function getSavedGroundOffset() {
     }
   }
 
-
   function applySelectedYaw() {
     const obj = getSelectedObject();
     const panel = document.getElementById(POSITION_PANEL_ID);
@@ -3271,7 +3864,8 @@ function getSavedGroundOffset() {
     const yawDeg = parseFloat(yawInput?.value);
     if (!Number.isFinite(yawDeg)) {
       const curDeg = (Number(obj.rotation.z) || 0) * (180 / Math.PI);
-      if (yawInput) yawInput.value = Number.isFinite(curDeg) ? curDeg.toFixed(2) : "0.00";
+      if (yawInput)
+        yawInput.value = Number.isFinite(curDeg) ? curDeg.toFixed(2) : "0.00";
       return false;
     }
 
@@ -3280,7 +3874,10 @@ function getSavedGroundOffset() {
     try {
       const newRotation = obj.rotation.clone();
       newRotation.z = yawRad;
-      if (newRotation.quaternion && typeof newRotation.quaternion.setFromEuler === "function") {
+      if (
+        newRotation.quaternion &&
+        typeof newRotation.quaternion.setFromEuler === "function"
+      ) {
         newRotation.quaternion.setFromEuler(newRotation);
       }
       applyObjectTransform(obj, { rotation: newRotation });
@@ -3623,7 +4220,6 @@ function getSavedGroundOffset() {
                 <span style="color:#6ee7b7;font-weight:600;">Tự dời B khi qua Frame</span>
               </label>
               <div style="display:flex;align-items:center;gap:5px;">
-                <span style="font-size:8.5px;color:#38bdf8;font-weight:600;" title="Ôm cua: Tự động khóa bán kính R và quét hút điểm LiDAR trên cung tròn">🔄 Cua Arc-R</span>
                 <span style="font-size:8.5px;color:#93c5fd;font-weight:600;" title="Phương án 3: Giữ nguyên 100% góc xoay Yaw của B, không can thiệp mặt đất">🎯 Giữ Yaw B</span>
               </div>
             </div>
@@ -3635,6 +4231,9 @@ function getSavedGroundOffset() {
               <input data-role="batch-to-frame" type="number" min="1" step="1" placeholder="Đến" style="width:36px;flex:0 0 36px;height:21px;text-align:center;padding:0 1px;border:1px solid #3d4755;border-radius:3px;background:#0f172a;color:#e0e7ff;font-size:9.5px;font-weight:700;" title="Frame kết thúc" />
               <button data-role="batch-sync-cone-btn" title="Chạy đồng bộ dời Vật B từ Frame ... đến Frame ..." style="flex:1;min-width:0;height:21px;padding:0 4px;border:1px solid #059669;border-radius:3px;background:#065f46;color:#a7f3d0;font-size:9.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                 🚀 Đồng bộ
+              </button>
+              <button data-role="undo-batch-sync-btn" title="Hoàn tác vị trí Vật B do batch đồng bộ gần nhất sửa; chỉ có hiệu lực trong phiên trang hiện tại" disabled style="flex:0 0 70px;height:21px;padding:0 3px;border:1px solid #475569;border-radius:3px;background:#1e293b;color:#cbd5e1;font-size:9px;font-weight:700;cursor:not-allowed;opacity:.55;white-space:nowrap;">
+                ↶ Hoàn tác
               </button>
             </div>
             <!-- Hàng 5: NÚT LÀM MƯỢT QUỸ ĐẠO (SMOOTH TRACK - CÁCH 3) -->
@@ -4073,7 +4672,9 @@ function getSavedGroundOffset() {
       });
     }
 
-    const cameraFollowCb = panel.querySelector('[data-role="camera-auto-follow"]');
+    const cameraFollowCb = panel.querySelector(
+      '[data-role="camera-auto-follow"]',
+    );
     if (cameraFollowCb) {
       const savedFollow = localStorage.getItem("auto-lwh-camera-follow");
       cameraFollowCb.checked = savedFollow !== "false";
@@ -4117,7 +4718,9 @@ function getSavedGroundOffset() {
       });
     }
 
-    const aimAutoCb = panel.querySelector('[data-role="aim-auto-frame-change"]');
+    const aimAutoCb = panel.querySelector(
+      '[data-role="aim-auto-frame-change"]',
+    );
     if (aimAutoCb) {
       aimAutoCb.checked = Boolean(aimTargetState.autoOnFrameChange);
       aimAutoCb.addEventListener("change", () => {
@@ -4126,7 +4729,9 @@ function getSavedGroundOffset() {
       });
     }
 
-    const aimWorldAnchorCb = panel.querySelector('[data-role="aim-world-anchor"]');
+    const aimWorldAnchorCb = panel.querySelector(
+      '[data-role="aim-world-anchor"]',
+    );
     if (aimWorldAnchorCb) {
       aimWorldAnchorCb.checked = Boolean(aimTargetState.worldAnchor);
       aimWorldAnchorCb.addEventListener("change", () => {
@@ -4191,7 +4796,8 @@ function getSavedGroundOffset() {
 
     const boxPivotMode = panel.querySelector('[data-role="box-pivot-mode"]');
     if (boxPivotMode) {
-      boxPivotMode.value = localStorage.getItem("auto-lwh-pivot-mode") || "auto";
+      boxPivotMode.value =
+        localStorage.getItem("auto-lwh-pivot-mode") || "auto";
       boxPivotMode.addEventListener("change", () => {
         localStorage.setItem("auto-lwh-pivot-mode", boxPivotMode.value);
         updatePositionPanel();
@@ -4242,7 +4848,10 @@ function getSavedGroundOffset() {
         }
         // Cập nhật vị trí realtime khi đổi hướng/chế độ
         const curObj = getSelectedObject();
-        if (curObj && panel.querySelector('[data-role="ref-id-input"]')?.value?.trim()) {
+        if (
+          curObj &&
+          panel.querySelector('[data-role="ref-id-input"]')?.value?.trim()
+        ) {
           applyRefZ(curObj);
         }
       });
@@ -4254,7 +4863,10 @@ function getSavedGroundOffset() {
         setSavedRefGap(currentMode, e.target.value);
         // Cập nhật vị trí realtime khi thay đổi độ hở
         const curObj = getSelectedObject();
-        if (curObj && panel.querySelector('[data-role="ref-id-input"]')?.value?.trim()) {
+        if (
+          curObj &&
+          panel.querySelector('[data-role="ref-id-input"]')?.value?.trim()
+        ) {
           applyRefZ(curObj);
         }
       });
@@ -4598,6 +5210,12 @@ function getSavedGroundOffset() {
         batchSyncConeB();
       }
       if (
+        role === "undo-batch-sync-btn" ||
+        target.closest('[data-role="undo-batch-sync-btn"]')
+      ) {
+        undoLastBatchSync();
+      }
+      if (
         role === "smooth-track-btn" ||
         target.closest('[data-role="smooth-track-btn"]')
       ) {
@@ -4622,9 +5240,7 @@ function getSavedGroundOffset() {
           alert("Vui lòng click chọn 1 đối tượng/box để làm đích ngắm!");
         } else {
           const trackName =
-            curObj.userData?.trackName ||
-            curObj.userData?.trackId ||
-            "1";
+            curObj.userData?.trackName || curObj.userData?.trackId || "1";
           aimTargetState.active = true;
           aimTargetState.mode = "track";
           aimTargetState.targetTrackId = String(trackName);
@@ -4795,7 +5411,13 @@ function getSavedGroundOffset() {
     // Khi đang nhập thông số, bấm Enter hoặc Escape sẽ tự động áp dụng và focus trả lại trang web / canvas 3D
     panel.addEventListener("keydown", (event) => {
       const target = event.target;
-      if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
+      if (
+        !(
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLSelectElement
+        )
+      )
+        return;
 
       if (event.key === "Enter" || event.key === "Escape") {
         event.preventDefault();
@@ -4816,7 +5438,9 @@ function getSavedGroundOffset() {
             if (obj) snapObjectToGround(obj, offsetVal);
           } else if (role === "ref-id-input" || role === "ref-gap-input") {
             if (role === "ref-gap-input") {
-              const currentMode = panel.querySelector('[data-role="ref-sync-mode"]')?.value || getSavedRefMode();
+              const currentMode =
+                panel.querySelector('[data-role="ref-sync-mode"]')?.value ||
+                getSavedRefMode();
               setSavedRefGap(currentMode, target.value);
             }
             const obj = getSelectedObject();
@@ -4841,16 +5465,21 @@ function getSavedGroundOffset() {
       const canvas =
         pc?.renderViews?.[0]?.container?.querySelector("canvas") ||
         pc?.container?.querySelector("canvas") ||
-        document.querySelector("div.main-view canvas, canvas.main-canvas, #editor canvas, canvas");
+        document.querySelector(
+          "div.main-view canvas, canvas.main-canvas, #editor canvas, canvas",
+        );
 
       if (canvas) {
         if (!canvas.hasAttribute("tabindex")) {
           canvas.setAttribute("tabindex", "-1");
         }
         canvas.focus();
-        canvas.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+        canvas.dispatchEvent(
+          new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+        );
       } else {
-        const mainContainer = pc?.container || document.querySelector(".pc-editor, #app, body");
+        const mainContainer =
+          pc?.container || document.querySelector(".pc-editor, #app, body");
         if (mainContainer) {
           if (!mainContainer.hasAttribute("tabindex")) {
             mainContainer.setAttribute("tabindex", "-1");
@@ -4873,7 +5502,9 @@ function getSavedGroundOffset() {
     if (!active) return false;
     return (
       panel.contains(active) &&
-      (active.tagName === "INPUT" || active.tagName === "SELECT" || active.tagName === "TEXTAREA")
+      (active.tagName === "INPUT" ||
+        active.tagName === "SELECT" ||
+        active.tagName === "TEXTAREA")
     );
   }
 
@@ -5050,15 +5681,17 @@ function getSavedGroundOffset() {
       const px = Number(obj.position?.x);
       const py = Number(obj.position?.y);
       const pz = Number(obj.position?.z);
-      const posText = Number.isFinite(px) && Number.isFinite(py) && Number.isFinite(pz)
-        ? `${px.toFixed(2)}, ${py.toFixed(2)}, ${pz.toFixed(2)}`
-        : "n/a";
+      const posText =
+        Number.isFinite(px) && Number.isFinite(py) && Number.isFinite(pz)
+          ? `${px.toFixed(2)}, ${py.toFixed(2)}, ${pz.toFixed(2)}`
+          : "n/a";
       const sx = Number(obj.scale?.x);
       const sy = Number(obj.scale?.y);
       const sz = Number(obj.scale?.z);
-      const sizeText = Number.isFinite(sx) && Number.isFinite(sy) && Number.isFinite(sz)
-        ? `${sx.toFixed(2)}, ${sy.toFixed(2)}, ${sz.toFixed(2)}`
-        : "n/a";
+      const sizeText =
+        Number.isFinite(sx) && Number.isFinite(sy) && Number.isFinite(sz)
+          ? `${sx.toFixed(2)}, ${sy.toFixed(2)}, ${sz.toFixed(2)}`
+          : "n/a";
       statusEl.textContent = `Pos: ${posText} | Size: ${sizeText}`;
     }
 
@@ -5089,7 +5722,9 @@ function getSavedGroundOffset() {
           Math.max(obj.scale?.x || 0.41, obj.scale?.y || 0.41) / 2;
         const edgeGap = Math.max(0, dist2D - radiusRef - radiusCur);
 
-        const titleEl = distInfoEl.querySelector('[data-role="ref-dist-title"]');
+        const titleEl = distInfoEl.querySelector(
+          '[data-role="ref-dist-title"]',
+        );
         const dist2dEl = distInfoEl.querySelector('[data-role="ref-dist-2d"]');
         const detailsEl = distInfoEl.querySelector(
           '[data-role="ref-dist-details"]',
@@ -5115,13 +5750,21 @@ function getSavedGroundOffset() {
     }
 
     const rel = getSavedConeRelation();
-    const benchmarkBanner = panel.querySelector('[data-role="ref-benchmark-status"]');
+    const benchmarkBanner = panel.querySelector(
+      '[data-role="ref-benchmark-status"]',
+    );
     if (benchmarkBanner) {
       if (rel && rel.refTrackName && rel.targetTrackName) {
         benchmarkBanner.style.display = "block";
-        const dXStr = Number.isFinite(rel.deltaX) ? `${rel.deltaX >= 0 ? '+' : ''}${rel.deltaX.toFixed(2)}m` : "--";
-        const dYStr = Number.isFinite(rel.deltaY) ? `${rel.deltaY >= 0 ? '+' : ''}${rel.deltaY.toFixed(2)}m` : "--";
-        const dZStr = Number.isFinite(rel.deltaZ) ? `${rel.deltaZ >= 0 ? '+' : ''}${rel.deltaZ.toFixed(2)}m` : "--";
+        const dXStr = Number.isFinite(rel.deltaX)
+          ? `${rel.deltaX >= 0 ? "+" : ""}${rel.deltaX.toFixed(2)}m`
+          : "--";
+        const dYStr = Number.isFinite(rel.deltaY)
+          ? `${rel.deltaY >= 0 ? "+" : ""}${rel.deltaY.toFixed(2)}m`
+          : "--";
+        const dZStr = Number.isFinite(rel.deltaZ)
+          ? `${rel.deltaZ >= 0 ? "+" : ""}${rel.deltaZ.toFixed(2)}m`
+          : "--";
         benchmarkBanner.innerHTML = `⭐ <b>Chuẩn F${rel.benchmarkFrame || "?"}:</b> #${rel.refTrackName} ➜ #${rel.targetTrackName} | Cự ly: <b>${rel.dist2D?.toFixed(2) || "?"}m</b> (Hở: ${rel.gap?.toFixed(2) || "0.00"}m)<br/><span style="color:#cbd5e1;font-size:8.5px;">ΔX: ${dXStr} | ΔY: ${dYStr} | ΔZ: ${dZStr}</span><br/><span style="color:#6ee7b7;font-size:8.5px;font-weight:600;">✓ Sang frame mới: Bấm <b>Alt+B</b> để dời Vật B</span><br/><span style="color:#93c5fd;font-size:8.5px;font-weight:600;">🎯 Yaw: Giữ nguyên 100% góc của B (P/án 3: Tự do nắn Yaw cho B)</span>`;
       } else {
         benchmarkBanner.style.display = "none";
@@ -5139,7 +5782,11 @@ function getSavedGroundOffset() {
     );
     const curNum = getCurrentFrameNumber();
     if (currentInput && document.activeElement !== currentInput) {
-      if (curNum !== null && Number.isFinite(curNum) && String(currentInput.value) !== String(curNum)) {
+      if (
+        curNum !== null &&
+        Number.isFinite(curNum) &&
+        String(currentInput.value) !== String(curNum)
+      ) {
         currentInput.value = String(curNum);
       }
     }
@@ -5147,13 +5794,26 @@ function getSavedGroundOffset() {
     // Tự động điền giá trị mẫu ban đầu cho ô Từ Frame - Đến Frame nếu đang rỗng
     const fromInput = panel.querySelector('[data-role="batch-from-frame"]');
     const toInput = panel.querySelector('[data-role="batch-to-frame"]');
-    const editor = window.editor || window.__APP__?.editor || window.app?.editor;
-    const totalF = Array.isArray(editor?.state?.frames) ? editor.state.frames.length : null;
+    const editor =
+      window.editor || window.__APP__?.editor || window.app?.editor;
+    const totalF = Array.isArray(editor?.state?.frames)
+      ? editor.state.frames.length
+      : null;
 
-    if (fromInput && document.activeElement !== fromInput && !fromInput.value && curNum !== null) {
+    if (
+      fromInput &&
+      document.activeElement !== fromInput &&
+      !fromInput.value &&
+      curNum !== null
+    ) {
       fromInput.value = String(curNum);
     }
-    if (toInput && document.activeElement !== toInput && !toInput.value && totalF) {
+    if (
+      toInput &&
+      document.activeElement !== toInput &&
+      !toInput.value &&
+      totalF
+    ) {
       toInput.value = String(totalF);
     }
     updateAimTargetUI();
@@ -5324,7 +5984,8 @@ function getSavedGroundOffset() {
   }
 
   function setupCrosshairOverlay(view) {
-    if (!view || !view.container || view.container.__auto_lwh_crosshair__) return;
+    if (!view || !view.container || view.container.__auto_lwh_crosshair__)
+      return;
     const container = view.container;
 
     try {
@@ -5685,7 +6346,11 @@ function getSavedGroundOffset() {
       } else {
         const obj = getSelectedObject();
         const trackId = String(
-          obj?.userData?.trackId ?? obj?.userData?.trackName ?? obj?.uuid ?? lastInspectedTrackId ?? "",
+          obj?.userData?.trackId ??
+            obj?.userData?.trackName ??
+            obj?.uuid ??
+            lastInspectedTrackId ??
+            "",
         );
         if (trackId && trackGhostHistory.has(trackId)) {
           stateToDisplay = trackGhostHistory.get(trackId);
@@ -5722,7 +6387,12 @@ function getSavedGroundOffset() {
   }
 
   function setupGhostBoxRendering(view) {
-    if (!view || view.__auto_lwh_ghost_hooked__ || typeof view.renderFrame !== "function") return;
+    if (
+      !view ||
+      view.__auto_lwh_ghost_hooked__ ||
+      typeof view.renderFrame !== "function"
+    )
+      return;
     view.__auto_lwh_ghost_hooked__ = true;
 
     const originalRenderFrame = view.renderFrame.bind(view);
@@ -5993,8 +6663,7 @@ function getSavedGroundOffset() {
         if (obj) snapObjectToGround(obj);
       }
 
-      const autoRefZ =
-        localStorage.getItem("auto-lwh-auto-ref-z") === "true";
+      const autoRefZ = localStorage.getItem("auto-lwh-auto-ref-z") === "true";
       if (autoRefZ) {
         checkAutoApplyRefZ();
       }
@@ -6091,27 +6760,51 @@ function getSavedGroundOffset() {
             e.preventDefault();
             e.stopPropagation();
             nudgeSelectedPosition({ dy: 0.01 });
-          } else if (e.code === "Numpad2" || e.key === "2" || e.key === "ArrowDown") {
+          } else if (
+            e.code === "Numpad2" ||
+            e.key === "2" ||
+            e.key === "ArrowDown"
+          ) {
             e.preventDefault();
             e.stopPropagation();
             nudgeSelectedPosition({ dy: -0.01 });
-          } else if (e.code === "Numpad4" || e.key === "4" || e.key === "ArrowLeft") {
+          } else if (
+            e.code === "Numpad4" ||
+            e.key === "4" ||
+            e.key === "ArrowLeft"
+          ) {
             e.preventDefault();
             e.stopPropagation();
             nudgeSelectedPosition({ dx: -0.01 });
-          } else if (e.code === "Numpad6" || e.key === "6" || e.key === "ArrowRight") {
+          } else if (
+            e.code === "Numpad6" ||
+            e.key === "6" ||
+            e.key === "ArrowRight"
+          ) {
             e.preventDefault();
             e.stopPropagation();
             nudgeSelectedPosition({ dx: 0.01 });
-          } else if (e.code === "Numpad9" || e.key === "9" || e.key === "PageUp") {
+          } else if (
+            e.code === "Numpad9" ||
+            e.key === "9" ||
+            e.key === "PageUp"
+          ) {
             e.preventDefault();
             e.stopPropagation();
             nudgeSelectedPosition({ dz: 0.01 });
-          } else if (e.code === "Numpad3" || e.key === "3" || e.key === "PageDown") {
+          } else if (
+            e.code === "Numpad3" ||
+            e.key === "3" ||
+            e.key === "PageDown"
+          ) {
             e.preventDefault();
             e.stopPropagation();
             nudgeSelectedPosition({ dz: -0.01 });
-          } else if (e.code === "Numpad7" || e.key === "7" || e.key === "Home") {
+          } else if (
+            e.code === "Numpad7" ||
+            e.key === "7" ||
+            e.key === "Home"
+          ) {
             e.preventDefault();
             e.stopPropagation();
             nudgeSelectedPosition({ dYaw: -0.5 });
@@ -6179,8 +6872,11 @@ function getSavedGroundOffset() {
       refreshSelection();
       setTimeout(applyCameraAutoFollow, 80);
       // Tuyệt đối không âm thầm tự động căn chỉnh: Chỉ chạy khi người dùng trực tiếp tích chọn checkbox trên giao diện
-      const autoSpawn =
-        Boolean(document.getElementById(POSITION_PANEL_ID)?.querySelector('[data-role="auto-spawn-cone"]')?.checked);
+      const autoSpawn = Boolean(
+        document
+          .getElementById(POSITION_PANEL_ID)
+          ?.querySelector('[data-role="auto-spawn-cone"]')?.checked,
+      );
       if (autoSpawn) {
         setTimeout(() => {
           if (isBatchSyncRunning) return;
@@ -6198,11 +6894,19 @@ function getSavedGroundOffset() {
         const tryApplyAim = () => {
           const all = getAll3DObjects();
           let curObj = null;
-          const qTrack = String(aimTargetState.anchorTrackName || "").trim().toLowerCase().replace(/^#/, "");
+          const qTrack = String(aimTargetState.anchorTrackName || "")
+            .trim()
+            .toLowerCase()
+            .replace(/^#/, "");
           if (qTrack && all.length > 0) {
             curObj = all.find((o) => {
-              const tn = String(o?.userData?.trackName ?? "").trim().toLowerCase().replace(/^#/, "");
-              const tid = String(o?.userData?.trackId ?? "").trim().toLowerCase();
+              const tn = String(o?.userData?.trackName ?? "")
+                .trim()
+                .toLowerCase()
+                .replace(/^#/, "");
+              const tid = String(o?.userData?.trackId ?? "")
+                .trim()
+                .toLowerCase();
               return tn === qTrack || tid === qTrack;
             });
           }
@@ -6228,7 +6932,11 @@ function getSavedGroundOffset() {
     editor?.addEventListener?.("frameChange", handleFrameSwitch);
     editor?.addEventListener?.("FRAME_CHANGE", handleFrameSwitch);
 
-    if (editor && typeof editor.loadFrame === "function" && !editor.__origLoadFrame) {
+    if (
+      editor &&
+      typeof editor.loadFrame === "function" &&
+      !editor.__origLoadFrame
+    ) {
       editor.__origLoadFrame = editor.loadFrame;
       editor.loadFrame = function (...args) {
         recordCurrentObjectState();
